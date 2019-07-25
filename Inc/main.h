@@ -29,6 +29,7 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32g0xx_hal.h"
+#include "stm32g0xx_ll_system.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -60,8 +61,12 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define ROW_SEL_EN_GLK_Pin GPIO_PIN_9
 #define ROW_SEL_EN_GLK_GPIO_Port GPIOB
+#define PI_CLK_RX_Pin GPIO_PIN_0
+#define PI_CLK_RX_GPIO_Port GPIOA
 #define EDGE_EN_Pin GPIO_PIN_1
 #define EDGE_EN_GPIO_Port GPIOA
+#define PI_DATA_RX_Pin GPIO_PIN_4
+#define PI_DATA_RX_GPIO_Port GPIOA
 #define SEL_READ_WRITE_Pin GPIO_PIN_5
 #define SEL_READ_WRITE_GPIO_Port GPIOA
 #define EXT1_Pin GPIO_PIN_7
