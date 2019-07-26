@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "globals.h"
 #include "addresses.h"
+#include "colour.h"
 #include "data.h"
 #include "touch.h"
 /* USER CODE END Includes */
@@ -118,8 +119,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   Initialise();
-  InitTouch_ADC();
   LoadAddress();
+  InitTouch_ADC();
   //LoadAddress();
   //HAL_ADC_Start_DMA(&hadc1, ADCReadings, 4);
   //printf("Here TT %d",touchCalibrated);

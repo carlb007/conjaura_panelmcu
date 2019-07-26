@@ -14,7 +14,10 @@ void AddressHeader(){
 	globalVals.addressSubMode = (*bufferSPI_RX>>4) & 0x3;
 	debugPrint("GOT ADDRESS MODE \n",(uint16_t*)globalVals.addressSubMode);
 
-	if(globalVals.addressSubMode==WORKING || globalVals.addressSubMode==RESET){
+	if(!globalVals.touchRunning){
+		InitTouch_ADC();
+	}
+	if(globalVals.addressSubMode==WORKING || globalVals.addressSubMode==RESTART){
 		thisPanel.addressSet = FALSE;
 		lastSeenAddress = 0;
 		globalVals.dataMode = AWAITING_ADDRESS_CALLS;
@@ -26,6 +29,7 @@ void AddressHeader(){
 	}
 	else if(globalVals.addressSubMode==FINISH){
 		FinishAddressMode();
+		DeInitTouch_ADC();
 	}
 }
 
@@ -64,7 +68,8 @@ void LoadAddress(){
 	uint8_t initByte = 161;//10100001 - LSB OF 1 INDICATES READ MODE.
 	uint8_t addressByte = 0;
 	uint8_t returnData[2];
-	uint8_t resp = HAL_I2C_Master_Transmit(&hi2c1,initByte,addressByte,1,1000);
+	uint8_t resp;
+	resp = HAL_I2C_Master_Transmit(&hi2c1,initByte,(void *)(intptr_t)addressByte,1,1000);
 	if(resp == 0){
 		resp = HAL_I2C_Master_Receive(&hi2c1,initByte,returnData,2,1000);
 		if(resp == 0){

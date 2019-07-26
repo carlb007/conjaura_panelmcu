@@ -6,7 +6,7 @@
  */
 #include "data.h"
 
-extern SPI_HandleTypeDef hspi1,hspi2;
+extern SPI_HandleTypeDef hspi2;
 
 void Initialise(){
 	debugPrint("Ready\n","");
@@ -45,46 +45,13 @@ void DataToEXT(){
 void ParseHeader(){
 	globalVals.dataMode = *bufferSPI_RX>>6;
 	if (globalVals.dataMode == COLOUR_MODE){
-		globalSettings.colourMode = (*bufferSPI_RX>>4) & 0x3;
-		globalSettings.biasHC = (*bufferSPI_RX>>2) & 0x3;
-		globalSettings.bamBits = *bufferSPI_RX>>2 & 0x3;
-		globalSettings.paletteSize = 0;
-		if(globalSettings.colourMode == PALETTE_COLOUR){
-			globalSettings.paletteSize = *(bufferSPI_RX+1);
-			globalVals.dataMode = AWAITING_PALETTE_DATA;
-			HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalSettings.paletteSize);
-		}
-		else{
-			HeaderMode(TRUE);
-		}
-		debugPrint("GOT COLOUR MODE %d \n",(uint16_t*)globalSettings.colourMode);
+		ColourHeader();
 	}
 	else if (globalVals.dataMode == ADDRESS_MODE){
 		AddressHeader();
 	}
 	else if (globalVals.dataMode == CONFIG_MODE){
-		globalVals.configSubMode = (*bufferSPI_RX>>4) & 0x3;
-		globalSettings.totalPanels  = (*bufferSPI_RX+1);
-		if(globalVals.configSubMode == PANEL_INF){
-			globalVals.dataMode = AWAITING_CONF_DATA;
-			HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalSettings.totalPanels*4);
-		}
-		else if(globalVals.configSubMode == GAMMA){
-			globalVals.dataMode = AWAITING_GAMMA_DATA;
-			uint16_t gamSize = 768;
-			if(globalSettings.colourMode==HIGH_COLOUR){
-				if(globalSettings.biasHC==3){
-					gamSize = 96;	// 5/5/5
-				}
-				else{
-					gamSize = 128;	// 5/6/5 or 6/5/5 or 5/5/6
-				}
-			}
-			HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, gamSize);
-		}
-	}
-	else{
-		debugPrint("unknown %d \n",(uint16_t*)*bufferSPI_RX);
+		ConfigHeader();
 	}
 }
 
@@ -92,6 +59,18 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
 	if(globalVals.dataState == AWAITING_HEADER){
 		ParseHeader();
 	}
+	else if(globalVals.dataState == AWAITING_PALETTE_DATA){
+		HandlePaletteData();
+	}
+	else if(globalVals.dataState == AWAITING_GAMMA_DATA){
+		HandleGammaData();
+	}
+	else if(globalVals.dataState == AWAITING_CONF_DATA){
+		HandleConfigData();
+	}
+
+
+
 }
 
 

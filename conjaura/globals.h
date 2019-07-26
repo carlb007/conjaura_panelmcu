@@ -19,6 +19,13 @@
 #define MAX_PANELS 128
 #define MAX_PANEL_LEDS 256
 #define MAX_EDGE_LEDS 48
+#define MAXTOUCHCHANNELS 16
+
+#define MAX_PALETTE_SIZE 256
+#define MAX_GAMMA_R_SIZE 256
+#define MAX_GAMMA_G_SIZE 256
+#define MAX_GAMMA_B_SIZE 256
+
 
 #define RX_BUFFER_SIZE 2048				//MAX DATA FEED LENGTH IN A SINGLE BATCH
 #define TX_BUFFER_SIZE 320				//TRANSMISSION MAX SIZE
@@ -74,19 +81,12 @@ typedef enum{
 }COLOUR_MODES;
 
 
-struct GlobalSets {
-	COLOUR_MODES colourMode;
-	uint8_t paletteSize;					//0 BASE
-	uint8_t bamBits;
-	uint8_t biasHC;							//0 = 5/6/5, 1 = 6/5/5, 2 = 5/5/6, 3 = 5/5/5
-	uint8_t totalPanels;
-} globalSettings;
-
 struct GlobalRunVals {
 	DATASTATES dataState;					//CURRENT ROUTINE STATE
 	HEADERSTATES dataMode;					//LAST HEADER STATE RECEIVED
 	ADDRESSMODE_STATES addressSubMode;		//SUB HEADER STATE FOR ADDR MODE
 	CONFIGMODE_STATES configSubMode;		//SUB HEADER STATE FOR CONF MODE
+	uint8_t totalPanels;
 	uint8_t currentPanelID;					//CURRENT PANEL ID COUNT
 	uint16_t currentPanelSize;				//SIZE IN BYTES OF EACH SEGMENT.
 	uint16_t currentPanelReturnSize;		//SIZE IN BYTES OF EACH SEGMENT.
@@ -94,6 +94,8 @@ struct GlobalRunVals {
 	uint8_t rs485RXMode;					//CURRENT STATE OF RS485 CHIP
 	uint8_t dataToLEDs;						//DATA TO LEDS OR PI
 	uint8_t peripheralDataPoint;			//TALLY FOR ADC PERIPHERAL STREAM
+	uint8_t touchRunning;
+	uint8_t touchCalibrated;
 } globalVals;
 
 typedef struct pData {
@@ -115,20 +117,47 @@ typedef struct pData {
 	uint8_t * edgeDataR;
 	uint8_t * edgeDataG;
 	uint8_t * edgeDataB;
-} PanelData;
+} panelData;
+
+typedef struct touchCh{
+	uint8_t value;
+	uint32_t baseReading;
+} touchData;
 
 struct Panel {
+	COLOUR_MODES colourMode;
+	uint8_t paletteSize;					//0 BASE
+	uint8_t bamBits;						//
+	uint8_t biasHC;							//0 = 5/6/5, 1 = 6/5/5, 2 = 5/5/6, 3 = 5/5/5
+	uint16_t gammaSize;
+	uint8_t gammaRLength;
+	uint8_t gammaGLength;
+	uint8_t gammaBLength;
 	uint8_t address;				//0 - 255. 256 Panels MAX.
-	uint8_t addressSet;		//HAVE WE SET OUR OWN ADDRESS? TOGGLED DURING ADDRESS MODE AND BOOT VIA EEPROM
+	uint8_t addressSet;				//HAVE WE SET OUR OWN ADDRESS? TOGGLED DURING ADDRESS MODE AND BOOT VIA EEPROM
+	uint8_t width;					//WIDTH IN PIXELS
+	uint8_t height;					//HEIGHT IN PIXELS
+	uint16_t pixelCount;			//WIDTH * HEIGHT
 	uint8_t orientation;			// 0 - 3. U, D, L, R
-	uint8_t type;					//ENUM. Determines Pixel Size/Count
+	uint8_t scanlines;				//0 = 1:8, 1 = 1:16
+
 	uint8_t outputEn;				//1 = ON. 0 = OFF.
-	uint8_t width;
-	uint8_t height;
-	uint8_t adcChannels;
-	uint8_t scanlines;
-	uint16_t pixelCount;
-	PanelData data;
+	uint8_t outputThrottle;			//0 = 100%, 1 = 80%...
+
+	uint8_t touchActive;			//1 = ON. 0 = OFF.
+	uint8_t touchChannels;			//CONTAINS ACTUAL COUNT NOT THE HEADER FLAG
+	uint8_t touchBits;				//0 = 4BIT, 1=8BIT
+
+	uint8_t edgeActive;
+	uint8_t edgeDensity;
+	uint8_t edgeThrottle;
+
+	uint8_t periperalActive;		//0 = NO PERIPH, 1-7 NOT DEFINED YET
+	uint8_t peripheralSettings;
+	uint8_t peripheralSizeFlag;
+
+	panelData data;
+	touchData touchChannel[MAXTOUCHCHANNELS];
 } thisPanel;
 
 
@@ -151,6 +180,15 @@ uint8_t * bufferSPI_TX;
 uint8_t panelReturnData[TOUCH_BUFFER_SIZE+PERIPHERAL_SIZE];		//COMBINED RETURN DATA FROM ALL PANELS IN CONNECTED CHAIN. FIRST 2048 RESERVED FOR TOUCH.
 uint8_t * returnData;
 
+uint8_t paletteBuffer[MAX_PALETTE_SIZE*3];	//SET ASIDE MEMORY FOR MAX PALETTE SIZE (256 COLOURS * 3)
+uint8_t *bufferPalette;						//POINTER TO PALETTE ARRAY
+
+uint8_t gammaR[MAX_GAMMA_R_SIZE];
+uint8_t gammaG[MAX_GAMMA_G_SIZE];
+uint8_t gammaB[MAX_GAMMA_B_SIZE];
+uint8_t *gammaDataR;
+uint8_t *gammaDataG;
+uint8_t *gammaDataB;
 
 
 void debugPrint(char *data, uint16_t *params);

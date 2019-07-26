@@ -26,4 +26,7 @@ void debugPrint(char *data, uint16_t *params){
 //DEFAULT VALS:
 void EnsureDefaults(){
 	thisPanel.addressSet = FALSE;
+	thisPanel.gammaSize = 0;
+	globalVals.touchRunning = FALSE;
+	globalVals.touchCalibrated = FALSE;
 }
