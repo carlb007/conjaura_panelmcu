@@ -43,14 +43,14 @@ void DataToEXT(){
 }
 
 void ParseHeader(){
-	globalVals.dataMode = *bufferSPI_RX>>6;
-	if (globalVals.dataMode == COLOUR_MODE){
+	globalVals.headerMode = *bufferSPI_RX>>6;
+	if (globalVals.headerMode == COLOUR_MODE){
 		ColourHeader();
 	}
-	else if (globalVals.dataMode == ADDRESS_MODE){
+	else if (globalVals.headerMode == ADDRESS_MODE){
 		AddressHeader();
 	}
-	else if (globalVals.dataMode == CONFIG_MODE){
+	else if (globalVals.headerMode == CONFIG_MODE){
 		ConfigHeader();
 	}
 }
@@ -58,6 +58,9 @@ void ParseHeader(){
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
 	if(globalVals.dataState == AWAITING_HEADER){
 		ParseHeader();
+	}
+	else if(globalVals.dataState == AWAITING_ADDRESS_CALLS){
+		AddressHeader();
 	}
 	else if(globalVals.dataState == AWAITING_PALETTE_DATA){
 		HandlePaletteData();
@@ -76,8 +79,8 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
 	if(globalVals.dataState == SENDING_ADDRESS_CALL){
-		HeaderMode(TRUE);
-		debugPrint("Sent Address\n","");
+		globalVals.dataState = AWAITING_ADDRESS_CALLS;
+		HeaderMode(FALSE);
 	}
 }
 

@@ -83,7 +83,7 @@ typedef enum{
 
 struct GlobalRunVals {
 	DATASTATES dataState;					//CURRENT ROUTINE STATE
-	HEADERSTATES dataMode;					//LAST HEADER STATE RECEIVED
+	HEADERSTATES headerMode;					//LAST HEADER STATE RECEIVED
 	ADDRESSMODE_STATES addressSubMode;		//SUB HEADER STATE FOR ADDR MODE
 	CONFIGMODE_STATES configSubMode;		//SUB HEADER STATE FOR CONF MODE
 	uint8_t totalPanels;
@@ -126,13 +126,13 @@ typedef struct touchCh{
 
 struct Panel {
 	COLOUR_MODES colourMode;
-	uint8_t paletteSize;					//0 BASE
+	uint8_t paletteSize;					//256 MAX.
 	uint8_t bamBits;						//
 	uint8_t biasHC;							//0 = 5/6/5, 1 = 6/5/5, 2 = 5/5/6, 3 = 5/5/5
 	uint16_t gammaSize;
-	uint8_t gammaRLength;
-	uint8_t gammaGLength;
-	uint8_t gammaBLength;
+	uint16_t gammaRLength;
+	uint16_t gammaGLength;
+	uint16_t gammaBLength;
 	uint8_t address;				//0 - 255. 256 Panels MAX.
 	uint8_t addressSet;				//HAVE WE SET OUR OWN ADDRESS? TOGGLED DURING ADDRESS MODE AND BOOT VIA EEPROM
 	uint8_t width;					//WIDTH IN PIXELS

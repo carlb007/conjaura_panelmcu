@@ -45,7 +45,7 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 		}
 		if(currentTouchPoint==7){
 			if(thisPanel.touchChannel[10].value>2 || thisPanel.touchChannel[8].value>2 || thisPanel.touchChannel[13].value>2 || thisPanel.touchChannel[15].value>2){
-				if (globalVals.dataMode == ADDRESS_MODE && thisPanel.addressSet==FALSE){
+				if (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE){
 					SetAndSendAddress();
 				}
 				//printf("ADC: BL %d, BR %d, TL %d, TR %d \n",touchChannel[8].value, touchChannel[10].value, touchChannel[13].value, touchChannel[15].value);
@@ -62,7 +62,8 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 		selectRow(currentTouchPoint);
 	}
 	else{
-		if(currentTouchPoint==thisPanel.touchChannels/2){
+		if(currentTouchPoint==MAXTOUCHCHANNELS/2){
+		//if(currentTouchPoint==thisPanel.touchChannels/2){
 			currentTouchPoint = 0;
 		}
 	}

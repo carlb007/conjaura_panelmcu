@@ -12,15 +12,13 @@ uint8_t lastSeenAddress=0;
 
 void AddressHeader(){
 	globalVals.addressSubMode = (*bufferSPI_RX>>4) & 0x3;
-	debugPrint("GOT ADDRESS MODE \n",(uint16_t*)globalVals.addressSubMode);
-
 	if(!globalVals.touchRunning){
 		InitTouch_ADC();
 	}
 	if(globalVals.addressSubMode==WORKING || globalVals.addressSubMode==RESTART){
 		thisPanel.addressSet = FALSE;
 		lastSeenAddress = 0;
-		globalVals.dataMode = AWAITING_ADDRESS_CALLS;
+		globalVals.dataState = AWAITING_ADDRESS_CALLS;
 		HeaderMode(FALSE);
 	}
 	else if(globalVals.addressSubMode==TRANSMIT){
@@ -42,7 +40,7 @@ void SetAndSendAddress(){
 	*(bufferSPI_TX+1) = 0;
 	EnableRS485TX();
 	DataToEXT();
-	globalVals.dataMode = SENDING_ADDRESS_CALL;
+	globalVals.dataState = SENDING_ADDRESS_CALL;
 	HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 2);
 }
 

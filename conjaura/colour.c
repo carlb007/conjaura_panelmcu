@@ -16,21 +16,21 @@ uint8_t  * gammaDataB = gammaB;
 void ColourHeader(){
 	thisPanel.colourMode = (*bufferSPI_RX>>4) & 0x3;
 	thisPanel.biasHC = (*bufferSPI_RX>>2) & 0x3;
-	thisPanel.bamBits = *bufferSPI_RX>>2 & 0x3;
+	thisPanel.bamBits = *bufferSPI_RX & 0x3;
 	thisPanel.paletteSize = 0;
 	if(thisPanel.colourMode == PALETTE_COLOUR){
 		thisPanel.paletteSize = *(bufferSPI_RX+1);
-		globalVals.dataMode = AWAITING_PALETTE_DATA;
-		HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, thisPanel.paletteSize);
+		globalVals.dataState = AWAITING_PALETTE_DATA;
+		HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, (thisPanel.paletteSize+1)*3);
 	}
 	else{
 		HeaderMode(TRUE);
 	}
-	debugPrint("GOT COLOUR MODE %d \n",(uint16_t*)thisPanel.colourMode);
+	//debugPrint("GOT COLOUR MODE %d \n",(uint16_t*)thisPanel.colourMode);
 }
 
 void HandlePaletteData(){
-	for(uint16_t thisColour=0; thisColour<=thisPanel.paletteSize; thisColour++){
+	for(uint16_t thisColour=0; thisColour<thisPanel.paletteSize+1; thisColour++){
 		uint8_t R = *(bufferSPI_RX+(thisColour*3));
 		uint8_t G = *(bufferSPI_RX+(thisColour*3)+1);
 		uint8_t B = *(bufferSPI_RX+(thisColour*3)+2);
@@ -40,7 +40,6 @@ void HandlePaletteData(){
 		*(bufferPalette+colourTarget+2) = B;
 	}
 	HeaderMode(TRUE);
-	debugPrint("GOT PALETTE %d \n",(uint16_t*)thisPanel.paletteSize);
 }
 
 
@@ -71,13 +70,13 @@ void GammaSetup(){
 }
 
 void HandleGammaData(){
-	for(uint8_t gamR=0; gamR<thisPanel.gammaRLength; gamR++){
+	for(uint16_t gamR=0; gamR<thisPanel.gammaRLength; gamR++){
 		*(gammaDataR+gamR) = *(bufferSPI_RX+gamR);
 	}
-	for(uint8_t gamG=0; gamG<thisPanel.gammaGLength; gamG++){
+	for(uint16_t gamG=0; gamG<thisPanel.gammaGLength; gamG++){
 		*(gammaDataG+gamG) = *(bufferSPI_RX+thisPanel.gammaRLength+gamG);
 	}
-	for(uint8_t gamB=0; gamB<thisPanel.gammaBLength; gamB++){
+	for(uint16_t gamB=0; gamB<thisPanel.gammaBLength; gamB++){
 		*(gammaDataG+gamB) = *(bufferSPI_RX+thisPanel.gammaRLength+thisPanel.gammaGLength+gamB);
 	}
 	HeaderMode(TRUE);

@@ -11,13 +11,13 @@ extern SPI_HandleTypeDef hspi2;
 
 void ConfigHeader(){
 	globalVals.configSubMode = (*bufferSPI_RX>>4) & 0x3;
-	globalVals.totalPanels  = (*bufferSPI_RX+1);
 	if(globalVals.configSubMode == PANEL_INF){
-		globalVals.dataMode = AWAITING_CONF_DATA;
+		globalVals.totalPanels  = *(bufferSPI_RX+1);
+		globalVals.dataState = AWAITING_CONF_DATA;
 		HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.totalPanels*4);
 	}
 	else if(globalVals.configSubMode == GAMMA){
-		globalVals.dataMode = AWAITING_GAMMA_DATA;
+		globalVals.dataState = AWAITING_GAMMA_DATA;
 		GammaSetup();
 		HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, thisPanel.gammaSize);
 	}
