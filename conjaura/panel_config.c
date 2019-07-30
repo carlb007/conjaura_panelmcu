@@ -24,7 +24,7 @@ void ConfigHeader(){
 }
 
 void HandleConfigData(){
-	uint8_t bytesPerLED;
+	uint8_t bytesPerLED = 0;
 	if(thisPanel.colourMode == TRUE_COLOUR){
 		bytesPerLED = 3;
 	}
@@ -106,7 +106,7 @@ void HandleConfigData(){
 
 		offset++;
 		uint8_t peripheralType = *(bufferSPI_RX+offset) >>5;
-		uint8_t periphBytes = 0;
+		uint8_t periphBytes = peripheralType;
 		//PERIPHERAL SIZING STILL TO BE IMPLEMENTED.
 
 		panelInfoLookup[pid].ledByteSize = bytesPerLED*(w*h);

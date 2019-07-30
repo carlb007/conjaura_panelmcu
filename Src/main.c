@@ -73,7 +73,9 @@ static void MX_SPI2_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
+#if DEBUGMODE
 extern void initialise_monitor_handles(void);
+#endif
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -88,7 +90,9 @@ extern void initialise_monitor_handles(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	#if DEBUGMODE
 	initialise_monitor_handles();
+	#endif
   /* USER CODE END 1 */
   
 
@@ -120,7 +124,7 @@ int main(void)
 
   Initialise();
   LoadAddress();
-//  InitTouch_ADC();
+  InitTouch_ADC();
   //LoadAddress();
   //HAL_ADC_Start_DMA(&hadc1, ADCReadings, 4);
   //printf("Here TT %d",touchCalibrated);
@@ -210,7 +214,7 @@ static void MX_ADC1_Init(void)
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV8;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_8B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.ScanConvMode = ADC_SCAN_SEQ_FIXED_BACKWARD;

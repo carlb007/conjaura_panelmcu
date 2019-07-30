@@ -14,6 +14,7 @@ void ColourHeader(void);
 void HandlePaletteData(void);
 
 void GammaSetup(void);
+
 void HandleGammaData(void);
 
 #endif /* COLOUR_H_ */

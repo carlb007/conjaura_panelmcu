@@ -20,6 +20,10 @@ void DataToEXT(void);
 
 void ParseHeader(void);
 
+void HandlePanelData(void);
+void HandleReturnData(void);
+void DataReceive(void);
+
 void selectRow(uint8_t);
 
 #endif /* DATA_H_ */

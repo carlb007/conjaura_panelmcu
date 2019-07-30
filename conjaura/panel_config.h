@@ -9,7 +9,8 @@
 #define PANEL_CONFIG_H_
 
 #include "globals.h"
-
+#include "colour.h"
+#include "data.h"
 
 void ConfigHeader(void);
 void HandleConfigData(void);

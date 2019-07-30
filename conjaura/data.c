@@ -6,7 +6,7 @@
  */
 #include "data.h"
 
-extern SPI_HandleTypeDef hspi2;
+extern SPI_HandleTypeDef hspi1,hspi2;
 
 void Initialise(){
 	debugPrint("Ready\n","");
@@ -44,7 +44,11 @@ void DataToEXT(){
 
 void ParseHeader(){
 	globalVals.headerMode = *bufferSPI_RX>>6;
-	if (globalVals.headerMode == COLOUR_MODE){
+	if (globalVals.headerMode == DATA_MODE){
+		globalVals.currentPanelID = 0;
+		DataReceive();
+	}
+	else if (globalVals.headerMode == COLOUR_MODE){
 		ColourHeader();
 	}
 	else if (globalVals.headerMode == ADDRESS_MODE){
@@ -55,8 +59,59 @@ void ParseHeader(){
 	}
 }
 
+void DataReceive(){
+	globalVals.currentPanelSize = panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize;
+	HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.currentPanelSize);
+	InitTouch_ADC();
+	globalVals.dataState = PANEL_DATA_STREAM;
+	globalVals.currentPanelReturnSize = panelInfoLookup[globalVals.currentPanelID].touchByteSize + panelInfoLookup[globalVals.currentPanelID].periperalByteSize;
+}
+
+void HandlePanelData(){
+	//debugPrint("GOT DATA \n","");
+	if(globalVals.currentPanelID == thisPanel.address){
+		//DO SOMETHING WITH OUR PIXEL DATA...
+
+		//RETURN OUR DATA IF NEEDED...
+		EnableRS485TX();
+		DataToEXT();
+		for(uint8_t ch=0;ch<thisPanel.touchChannels;ch++){
+			bufferSPI_TX[ch] = thisPanel.touchChannel[ch].value;
+		}
+		globalVals.dataState = SENDING_DATA_STREAM;
+		globalVals.pauseOutput = TRUE;
+		HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 16);
+	}
+	else{
+		if(globalVals.currentPanelReturnSize){
+			//KEEP AN EYE OUT FOR THE RETURN DATA WHIZZING BY IF THERES GOING TO BE ANY PRESENT
+			//EVEN THOUGH WE DONT NEED IT WE NEED TO TRACK WHEN THE NEXT PANEL DATA IS GOING TO ARRIVE
+			globalVals.dataState = PANEL_RETURN_STREAM;
+			HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.currentPanelReturnSize);
+		}
+		else{
+			HandleReturnData();
+		}
+	}
+
+}
+
+void HandleReturnData(){
+	globalVals.currentPanelID++;
+	if(globalVals.currentPanelID==globalVals.totalPanels){
+		globalVals.currentPanelID=0;
+	}
+	DataReceive();
+}
+
 void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
-	if(globalVals.dataState == AWAITING_HEADER){
+	if(globalVals.dataState == PANEL_DATA_STREAM){
+		HandlePanelData();
+	}
+	else if(globalVals.dataState == PANEL_RETURN_STREAM){
+		HandleReturnData();
+	}
+	else if(globalVals.dataState == AWAITING_HEADER){
 		ParseHeader();
 	}
 	else if(globalVals.dataState == AWAITING_ADDRESS_CALLS){
@@ -78,7 +133,13 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
 
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
-	if(globalVals.dataState == SENDING_ADDRESS_CALL){
+	if(globalVals.dataState == SENDING_DATA_STREAM){
+		EnableRS485RX();
+		DataToLEDs();
+		globalVals.pauseOutput = FALSE;
+		HandleReturnData();
+	}
+	else if(globalVals.dataState == SENDING_ADDRESS_CALL){
 		globalVals.dataState = AWAITING_ADDRESS_CALLS;
 		HeaderMode(FALSE);
 	}

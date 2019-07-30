@@ -11,7 +11,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-#define DEBUGMODE 1							//ENABLE PRINTF OUTPUTS
+#define DEBUGMODE 0						//ENABLE PRINTF OUTPUTS
 #define DISABLEWATCHDOG 0					//FORCE REFRESH OF WATCHDOG
 #define TRUE 1
 #define FALSE 0
@@ -37,7 +37,8 @@
 typedef enum{							//BUNCH OF DATA STATES. HELD INSIDE "DISPLAY" STRUCT
 	READY,
 	AWAITING_HEADER,
-	PIXEL_DATA_STREAM,
+	PANEL_DATA_STREAM,
+	PANEL_RETURN_STREAM,
 	AWAITING_CONF_DATA,
 	AWAITING_PALETTE_DATA,
 	AWAITING_GAMMA_DATA,
@@ -50,6 +51,7 @@ typedef enum{							//BUNCH OF DATA STATES. HELD INSIDE "DISPLAY" STRUCT
 	SENDING_PALETTE_DATA,
 	SENDING_GAMMA_DATA,
 	SENDING_ADDRESS_CALL,
+	SENDING_DATA_STREAM,
 	ERR_DATA,
 	ERR_DMA,
 	ERR_TIM
@@ -96,6 +98,7 @@ struct GlobalRunVals {
 	uint8_t peripheralDataPoint;			//TALLY FOR ADC PERIPHERAL STREAM
 	uint8_t touchRunning;
 	uint8_t touchCalibrated;
+	uint8_t pauseOutput;
 } globalVals;
 
 typedef struct pData {
