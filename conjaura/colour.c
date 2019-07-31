@@ -8,15 +8,10 @@
 
 extern SPI_HandleTypeDef hspi2;
 
-uint8_t * bufferPalette = paletteBuffer;
-uint8_t  * gammaDataR = gammaR;
-uint8_t  * gammaDataG = gammaG;
-uint8_t  * gammaDataB = gammaB;
-
 void ColourHeader(){
 	thisPanel.colourMode = (*bufferSPI_RX>>4) & 0x3;
 	thisPanel.biasHC = (*bufferSPI_RX>>2) & 0x3;
-	thisPanel.bamBits = *bufferSPI_RX & 0x3;
+	thisPanel.bamBits = 5+(*bufferSPI_RX & 0x3);
 	thisPanel.paletteSize = 0;
 	if(thisPanel.colourMode == PALETTE_COLOUR){
 		thisPanel.paletteSize = *(bufferSPI_RX+1);
@@ -31,13 +26,9 @@ void ColourHeader(){
 
 void HandlePaletteData(){
 	for(uint16_t thisColour=0; thisColour<thisPanel.paletteSize+1; thisColour++){
-		uint8_t R = *(bufferSPI_RX+(thisColour*3));
-		uint8_t G = *(bufferSPI_RX+(thisColour*3)+1);
-		uint8_t B = *(bufferSPI_RX+(thisColour*3)+2);
-		uint16_t colourTarget = thisColour*3;
-		*(bufferPalette+colourTarget) = R;
-		*(bufferPalette+colourTarget+1) = G;
-		*(bufferPalette+colourTarget+2) = B;
+		paletteR[thisColour] = *(bufferSPI_RX+(thisColour*3));
+		paletteG[thisColour] = *(bufferSPI_RX+(thisColour*3)+1);
+		paletteB[thisColour] = *(bufferSPI_RX+(thisColour*3)+2);
 	}
 	HeaderMode(TRUE);
 }
@@ -71,13 +62,13 @@ void GammaSetup(){
 
 void HandleGammaData(){
 	for(uint16_t gamR=0; gamR<thisPanel.gammaRLength; gamR++){
-		*(gammaDataR+gamR) = *(bufferSPI_RX+gamR);
+		gammaR[gamR] = *(bufferSPI_RX+gamR);
 	}
 	for(uint16_t gamG=0; gamG<thisPanel.gammaGLength; gamG++){
-		*(gammaDataG+gamG) = *(bufferSPI_RX+thisPanel.gammaRLength+gamG);
+		gammaG[gamG] = *(bufferSPI_RX+thisPanel.gammaRLength+gamG);
 	}
 	for(uint16_t gamB=0; gamB<thisPanel.gammaBLength; gamB++){
-		*(gammaDataG+gamB) = *(bufferSPI_RX+thisPanel.gammaRLength+thisPanel.gammaGLength+gamB);
+		gammaB[gamB] = *(bufferSPI_RX+thisPanel.gammaRLength+thisPanel.gammaGLength+gamB);
 	}
 	HeaderMode(TRUE);
 }

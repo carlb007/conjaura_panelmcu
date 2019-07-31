@@ -5,6 +5,7 @@
  *      Author: me
  */
 #include "globals.h"
+#include "led_data.h"
 
 #ifndef DATA_H_
 #define DATA_H_

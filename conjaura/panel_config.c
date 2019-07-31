@@ -46,7 +46,12 @@ void HandleConfigData(){
 			thisPanel.pixelCount = thisPanel.width * thisPanel.height;
 			thisPanel.orientation = (*(bufferSPI_RX+offset) >>2)&0x3;
 			thisPanel.scanlines = (*(bufferSPI_RX+offset) >>1)&0x1;
-
+			if(thisPanel.scanlines==0){
+				thisPanel.scanlines = 8;
+			}
+			else{
+				thisPanel.scanlines = 16;
+			}
 			offset++;
 			thisPanel.outputEn  = *(bufferSPI_RX+offset) >>7;
 			thisPanel.outputThrottle = (*(bufferSPI_RX+offset) >>5)&0x3;

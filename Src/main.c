@@ -27,6 +27,7 @@
 #include "addresses.h"
 #include "colour.h"
 #include "data.h"
+#include "led_data.h"
 #include "touch.h"
 /* USER CODE END Includes */
 

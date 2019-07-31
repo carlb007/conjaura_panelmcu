@@ -71,6 +71,8 @@ void HandlePanelData(){
 	//debugPrint("GOT DATA \n","");
 	if(globalVals.currentPanelID == thisPanel.address){
 		//DO SOMETHING WITH OUR PIXEL DATA...
+		thisPanel.framesReceived++;
+		ConvertRawPixelData();
 
 		//RETURN OUR DATA IF NEEDED...
 		EnableRS485TX();

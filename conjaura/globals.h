@@ -11,18 +11,20 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-#define DEBUGMODE 0						//ENABLE PRINTF OUTPUTS
+#define DEBUGMODE 1						//ENABLE PRINTF OUTPUTS
 #define DISABLEWATCHDOG 0					//FORCE REFRESH OF WATCHDOG
 #define TRUE 1
 #define FALSE 0
 
 #define MAX_PANELS 128
-#define MAX_PANEL_LEDS 256
+#define MAX_PANEL_LEDS 256				//LIMITED TO 16x16
 #define MAX_EDGE_LEDS 48
 #define MAXTOUCHCHANNELS 16
 
-#define MAX_PALETTE_SIZE 256
-#define MAX_GAMMA_R_SIZE 256
+#define OUTPUTBUFFERSIZE 768			//16*16 MAX SIZE = 256. DIV BY SCAN LINES (8 WORST CASE). * BY BAM BITS (8 WORST CASE). * 3 (RGB)
+
+#define MAX_PALETTE_SIZE 256			//MAX RESERVED MEMORY FOR PALETTE DATA. n * 3
+#define MAX_GAMMA_R_SIZE 256			//RESERVED MEMORY FOR GAMMA LOOKUP. EACH CHANNEL CAN BE SEPERATE LENGTHS DUE TO 5/6/5 HC
 #define MAX_GAMMA_G_SIZE 256
 #define MAX_GAMMA_B_SIZE 256
 
@@ -159,6 +161,8 @@ struct Panel {
 	uint8_t peripheralSettings;
 	uint8_t peripheralSizeFlag;
 
+	uint16_t framesReceived;
+
 	panelData data;
 	touchData touchChannel[MAXTOUCHCHANNELS];
 } thisPanel;
@@ -182,16 +186,6 @@ uint8_t * bufferSPI_TX;
 
 uint8_t panelReturnData[TOUCH_BUFFER_SIZE+PERIPHERAL_SIZE];		//COMBINED RETURN DATA FROM ALL PANELS IN CONNECTED CHAIN. FIRST 2048 RESERVED FOR TOUCH.
 uint8_t * returnData;
-
-uint8_t paletteBuffer[MAX_PALETTE_SIZE*3];	//SET ASIDE MEMORY FOR MAX PALETTE SIZE (256 COLOURS * 3)
-uint8_t *bufferPalette;						//POINTER TO PALETTE ARRAY
-
-uint8_t gammaR[MAX_GAMMA_R_SIZE];
-uint8_t gammaG[MAX_GAMMA_G_SIZE];
-uint8_t gammaB[MAX_GAMMA_B_SIZE];
-uint8_t *gammaDataR;
-uint8_t *gammaDataG;
-uint8_t *gammaDataB;
 
 
 void debugPrint(char *data, uint16_t *params);
