@@ -10,6 +10,7 @@ uint8_t * bufferSPI_RX = spiBufferRX;
 uint8_t * bufferSPI_TX = spiBufferTX;
 uint8_t * returnData = panelReturnData;
 
+uint16_t timeDelays[8] = {100,200,400,800,1600,3200,6400,12800};
 
 //*(bufferSPI_TX) = 1;
 //*(bufferSPI_TX+1) = 2;
@@ -30,4 +31,17 @@ void EnsureDefaults(){
 	globalVals.touchRunning = FALSE;
 	globalVals.touchCalibrated = FALSE;
 	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;  //DISABLE ALL OUTPUTS ON LED DRIVER. LABELLED "OE" ON CHIP
+	GPIOA->BRR |= LED_LATCH_Pin;		//ENSURE LATCH IS DEFAULTED LOW
+	renderState.firstRender = TRUE;		//MARK AS FIRST RENDER
+	renderState.awaitingSwitch = FALSE;	//NO SWITCH NEEDED
+}
+
+void Initialise(){
+	debugPrint("Ready\n","");
+	EnsureDefaults();
+	InitTimers();
+	DataToEXT();
+	HeaderMode(TRUE);
+	LoadAddress();
+	InitTouch_ADC();
 }

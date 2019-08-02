@@ -24,6 +24,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "globals.h"
+#include "timers.h"
+#include "dma.h"
 #include "addresses.h"
 #include "colour.h"
 #include "data.h"
@@ -124,21 +126,13 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   Initialise();
-  LoadAddress();
-  InitTouch_ADC();
+
+
   //LoadAddress();
   //HAL_ADC_Start_DMA(&hadc1, ADCReadings, 4);
   //printf("Here TT %d",touchCalibrated);
   //calibrateTouch();
-  __HAL_RCC_TIM6_CLK_ENABLE();
-  TIM6->PSC = 3;
-  TIM6->ARR = 0;
-  TIM6->CR1 = 0;
-  TIM6->EGR |= TIM_EGR_UG;
-  TIM6->SR = ~1;
-  TIM6->DIER = 1;
 
-  HAL_NVIC_EnableIRQ(TIM6_IRQn);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -146,7 +140,17 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  if(renderState.storedData==TRUE && renderState.parsedData==FALSE){
+		  if(renderState.firstRender==TRUE){
+			  BamifyData();
+		  }
+		  else{
+			  if(renderState.currentBamBit==4){
+				  //WAIT FOR AN AMPLE GAP
+				  BamifyData();
+			  }
+		  }
+	  }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

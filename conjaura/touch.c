@@ -31,6 +31,7 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 				thisPanel.touchChannel[ch].baseReading /= CALIBRATIONSAMPLES;
 			}
 			globalVals.touchCalibrated = TRUE;
+			globalVals.touchRunning = FALSE;
 			//printf("ADC: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d \n",touchChannel[0].baseReading, touchChannel[1].baseReading, touchChannel[2].baseReading, touchChannel[3].baseReading,touchChannel[4].baseReading, touchChannel[5].baseReading, touchChannel[6].baseReading, touchChannel[7].baseReading,touchChannel[8].baseReading, touchChannel[9].baseReading, touchChannel[10].baseReading, touchChannel[11].baseReading,touchChannel[12].baseReading, touchChannel[13].baseReading, touchChannel[14].baseReading, touchChannel[15].baseReading);
 			//printf("ADC CALIB: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[1].baseReading, thisPanel.touchChannel[5].baseReading, thisPanel.touchChannel[11].baseReading, thisPanel.touchChannel[15].baseReading);
 		}

@@ -10,7 +10,6 @@
 #ifndef DATA_H_
 #define DATA_H_
 
-void Initialise(void);
 void HeaderMode(uint8_t);
 
 void EnableRS485RX(void);

@@ -8,12 +8,6 @@
 
 extern SPI_HandleTypeDef hspi1,hspi2;
 
-void Initialise(){
-	debugPrint("Ready\n","");
-	DataToEXT();
-	HeaderMode(TRUE);
-}
-
 void HeaderMode(uint8_t changeState){
 	EnableRS485RX();
 	if(changeState){
@@ -50,37 +44,7 @@ void EnableRowEn(){
 	GPIOA->BRR  |= ROW_SEL_EN_Pin;	//SET ROW SEL LOW TO ENABLE OUTPUT
 }
 
-void DMA1_1_IRQ(){
-	DMA1_Channel1->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
-	DMA1->IFCR |= (1|2);		//CLEAR ALL CHANNEL 1 INTERUPT
-	DMA1_Channel1->CCR &= ~1;	//DISABLE DMA
-	//hspi1.Instance->CR2 &= ~2;	//DISABLE DMA REQUEST
 
-	//hspi1.Instance->CR1 &= ~64;	//SET 6th BIT TO 0 TO DISABLE SPI
-	if(globalVals.dataState==DEBUG){
-		globalVals.dataState=READY;
-		while((hspi1.Instance->SR & SPI_SR_BSY));
-		HAL_GPIO_WritePin(GPIOA,LED_LATCH_Pin,GPIO_PIN_SET);//GPIO_PIN_RESET
-			HAL_GPIO_WritePin(GPIOA,LED_LATCH_Pin,GPIO_PIN_RESET);
-
-			//DisableRowEn(); 					//DISABLE ALL OUTPUTS ON MOSFET VIA MULTIPLEXER
-			HAL_GPIO_WritePin(GPIOB,ROW_SEL_EN_GLK_Pin,GPIO_PIN_SET);
-			//GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;  //DISABLE ALL OUTPUTS ON LED DRIVER. LABELLED "OE" ON CHIP
-
-
-
-			HAL_GPIO_WritePin(GPIOB,ROW_SEL_EN_GLK_Pin,GPIO_PIN_RESET);
-
-		//printf("timer started\n");
-		TIM6->ARR = timeDelays[renderState.currentBamBit];
-		TIM6->CR1 |= TIM_CR1_CEN;		//START TIMER
-
-	}
-	else{
-		//printf("Callback LED\n");
-		FinaliseLEDData();
-	}
-}
 
 void ParseHeader(){
 	globalVals.headerMode = *bufferSPI_RX>>6;
@@ -122,9 +86,11 @@ void HandlePanelData(){
 			globalVals.pauseOutput = TRUE;
 			HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 16);
 		}
-		//DO SOMETHING WITH OUR PIXEL DATA...
-		ConvertRawPixelData();
+		renderState.storedData=FALSE;
+		renderState.parsedData=FALSE;
 		renderState.framesReceived++;
+		//WE NEED TO STORE OUR DATA ASAP BEFORE NEXT DATA ARRIVES...
+		ConvertRawPixelData();
 	}
 	else{
 		if(globalVals.currentPanelReturnSize){
@@ -174,12 +140,6 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
 
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
-	if(renderState.streamInProgress==TRUE){
-		//printf("data sent\n");
-		//if(renderState.immediateJump != TRUE){
-			FinaliseLEDData();
-		//}
-	}
 	if(globalVals.dataState == SENDING_DATA_STREAM){
 		EnableRS485RX();
 		DataToLEDs();
