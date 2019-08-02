@@ -29,4 +29,5 @@ void EnsureDefaults(){
 	thisPanel.gammaSize = 0;
 	globalVals.touchRunning = FALSE;
 	globalVals.touchCalibrated = FALSE;
+	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;  //DISABLE ALL OUTPUTS ON LED DRIVER. LABELLED "OE" ON CHIP
 }

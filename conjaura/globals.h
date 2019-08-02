@@ -54,6 +54,7 @@ typedef enum{							//BUNCH OF DATA STATES. HELD INSIDE "DISPLAY" STRUCT
 	SENDING_GAMMA_DATA,
 	SENDING_ADDRESS_CALL,
 	SENDING_DATA_STREAM,
+	DEBUG,
 	ERR_DATA,
 	ERR_DMA,
 	ERR_TIM
@@ -161,13 +162,21 @@ struct Panel {
 	uint8_t peripheralSettings;
 	uint8_t peripheralSizeFlag;
 
-	uint16_t framesReceived;
-
 	panelData data;
 	touchData touchChannel[MAXTOUCHCHANNELS];
 } thisPanel;
 
-
+struct Rendering {
+	uint32_t framesReceived;		//SIMPLE TRACKING TALLY FOR DEBUG PURPOSES.
+	uint8_t flipFlopState;			//SWITCH BETWEEN RENDER AND OUTPUT BUFFERS
+	uint8_t awaitingSwitch;			//IS A RENDER REQUEST PENDING
+	uint8_t streamingData;			//OUR WE STREAMING TO THE LEDS
+	uint8_t streamInProgress;
+	uint8_t bamTimerStarted;		//HAVE WE STARED OUR RENDER/BAM TIMER?
+	uint8_t currentBamBit;			//TRACK OUR CURRENT BAM STEP
+	uint8_t currentRow;				//TRACK OUR ROW STEP
+	uint8_t immediateJump;			//TRACKING FOR BAM 0 FOR QUICKER TRANSFER
+} renderState;
 
 
 struct PanelInfLookup {

@@ -130,6 +130,15 @@ int main(void)
   //HAL_ADC_Start_DMA(&hadc1, ADCReadings, 4);
   //printf("Here TT %d",touchCalibrated);
   //calibrateTouch();
+  __HAL_RCC_TIM6_CLK_ENABLE();
+  TIM6->PSC = 3;
+  TIM6->ARR = 0;
+  TIM6->CR1 = 0;
+  TIM6->EGR |= TIM_EGR_UG;
+  TIM6->SR = ~1;
+  TIM6->DIER = 1;
+
+  HAL_NVIC_EnableIRQ(TIM6_IRQn);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -331,7 +340,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_HIGH;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
   hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;

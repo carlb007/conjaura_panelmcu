@@ -19,12 +19,17 @@ void EnableRS485TX(void);
 void DataToLEDs(void);
 void DataToEXT(void);
 
+void DisableRowEn(void);
+void EnableRowEn(void);
+
 void ParseHeader(void);
 
 void HandlePanelData(void);
 void HandleReturnData(void);
 void DataReceive(void);
 
-void selectRow(uint8_t);
+void DMA1_1_IRQ(void);
+
+void SelectRow(uint8_t);
 
 #endif /* DATA_H_ */

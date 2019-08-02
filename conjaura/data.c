@@ -23,23 +23,63 @@ void HeaderMode(uint8_t changeState){
 }
 
 void EnableRS485RX(){
-	GPIOA->BRR = SEL_READ_WRITE_Pin;
+	GPIOA->BRR |= SEL_READ_WRITE_Pin;
 	globalVals.rs485RXMode = TRUE;
 }
 
 void EnableRS485TX(){
-	GPIOA->BSRR = SEL_READ_WRITE_Pin;
+	GPIOA->BSRR |= SEL_READ_WRITE_Pin;
 	globalVals.rs485RXMode = FALSE;
 }
 
 void DataToLEDs(){
-	GPIOA->BSRR = SEL_MEM_LED_Pin;
+	GPIOB->BSRR |= SEL_MEM_LED_Pin;
 	globalVals.dataToLEDs = TRUE;
 }
 
 void DataToEXT(){
-	GPIOA->BRR = SEL_MEM_LED_Pin;
+	GPIOB->BRR |= SEL_MEM_LED_Pin;
 	globalVals.dataToLEDs = FALSE;
+}
+
+void DisableRowEn(){
+	GPIOA->BSRR |= ROW_SEL_EN_Pin;	//SET ROW SEL HIGH TO DISABLE OUTPUT
+}
+
+void EnableRowEn(){
+	GPIOA->BRR  |= ROW_SEL_EN_Pin;	//SET ROW SEL LOW TO ENABLE OUTPUT
+}
+
+void DMA1_1_IRQ(){
+	DMA1_Channel1->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+	DMA1->IFCR |= (1|2);		//CLEAR ALL CHANNEL 1 INTERUPT
+	DMA1_Channel1->CCR &= ~1;	//DISABLE DMA
+	//hspi1.Instance->CR2 &= ~2;	//DISABLE DMA REQUEST
+
+	//hspi1.Instance->CR1 &= ~64;	//SET 6th BIT TO 0 TO DISABLE SPI
+	if(globalVals.dataState==DEBUG){
+		globalVals.dataState=READY;
+		while((hspi1.Instance->SR & SPI_SR_BSY));
+		HAL_GPIO_WritePin(GPIOA,LED_LATCH_Pin,GPIO_PIN_SET);//GPIO_PIN_RESET
+			HAL_GPIO_WritePin(GPIOA,LED_LATCH_Pin,GPIO_PIN_RESET);
+
+			//DisableRowEn(); 					//DISABLE ALL OUTPUTS ON MOSFET VIA MULTIPLEXER
+			HAL_GPIO_WritePin(GPIOB,ROW_SEL_EN_GLK_Pin,GPIO_PIN_SET);
+			//GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;  //DISABLE ALL OUTPUTS ON LED DRIVER. LABELLED "OE" ON CHIP
+
+
+
+			HAL_GPIO_WritePin(GPIOB,ROW_SEL_EN_GLK_Pin,GPIO_PIN_RESET);
+
+		//printf("timer started\n");
+		TIM6->ARR = timeDelays[renderState.currentBamBit];
+		TIM6->CR1 |= TIM_CR1_CEN;		//START TIMER
+
+	}
+	else{
+		//printf("Callback LED\n");
+		FinaliseLEDData();
+	}
 }
 
 void ParseHeader(){
@@ -70,19 +110,21 @@ void DataReceive(){
 void HandlePanelData(){
 	//debugPrint("GOT DATA \n","");
 	if(globalVals.currentPanelID == thisPanel.address){
-		//DO SOMETHING WITH OUR PIXEL DATA...
-		thisPanel.framesReceived++;
-		ConvertRawPixelData();
 
 		//RETURN OUR DATA IF NEEDED...
-		EnableRS485TX();
-		DataToEXT();
-		for(uint8_t ch=0;ch<thisPanel.touchChannels;ch++){
-			bufferSPI_TX[ch] = thisPanel.touchChannel[ch].value;
+		if(thisPanel.touchActive){
+			EnableRS485TX();
+			DataToEXT();
+			for(uint8_t ch=0;ch<thisPanel.touchChannels;ch++){
+				bufferSPI_TX[ch] = thisPanel.touchChannel[ch].value;
+			}
+			globalVals.dataState = SENDING_DATA_STREAM;
+			globalVals.pauseOutput = TRUE;
+			HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 16);
 		}
-		globalVals.dataState = SENDING_DATA_STREAM;
-		globalVals.pauseOutput = TRUE;
-		HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 16);
+		//DO SOMETHING WITH OUR PIXEL DATA...
+		ConvertRawPixelData();
+		renderState.framesReceived++;
 	}
 	else{
 		if(globalVals.currentPanelReturnSize){
@@ -128,13 +170,16 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
 	else if(globalVals.dataState == AWAITING_CONF_DATA){
 		HandleConfigData();
 	}
-
-
-
 }
 
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
+	if(renderState.streamInProgress==TRUE){
+		//printf("data sent\n");
+		//if(renderState.immediateJump != TRUE){
+			FinaliseLEDData();
+		//}
+	}
 	if(globalVals.dataState == SENDING_DATA_STREAM){
 		EnableRS485RX();
 		DataToLEDs();
@@ -147,47 +192,43 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
 	}
 }
 
-void selectRow(uint8_t row){
-	GPIOA->BSRR = ROW_SEL_EN_Pin;	//SET ROW SEL HIGH TO DISABLE OUTPUT
-
+void SelectRow(uint8_t row){
 	switch(row){
-		case 0:														//ALL LOW - PIN 13 - 2,0 & 2,2 TOUCH
-			GPIOA->BRR = (ROW_SEL1_Pin | ROW_SEL3_Pin);
-			ROW_SEL2_GPIO_Port->BRR = ROW_SEL2_Pin;
+		case 0:														//ALL LOW - PIN 13 - 2,0 & 2,2 TOUCH, ROW 0 (BOTTOM)
+			GPIOA->BRR |= (ROW_SEL1_Pin | ROW_SEL3_Pin);
+			ROW_SEL2_GPIO_Port->BRR |= ROW_SEL2_Pin;
 			break;
-		case 1:														//1 HIGH - PIN 14 - 1,0 & 1,2 TOUCH
-			ROW_SEL2_GPIO_Port->BRR = ROW_SEL2_Pin;
-			GPIOA->BRR = ROW_SEL3_Pin;
-			GPIOA->BSRR = ROW_SEL1_Pin;
+		case 1:														//1 HIGH - PIN 14 - 1,0 & 1,2 TOUCH, ROW 1
+			ROW_SEL2_GPIO_Port->BRR |= ROW_SEL2_Pin;
+			GPIOA->BRR |= ROW_SEL3_Pin;
+			GPIOA->BSRR |= ROW_SEL1_Pin;
 			break;
-		case 2:														//2 HIGH - PIN 15 - 3,0 & 3,2 TOUCH*
-			GPIOA->BRR = (ROW_SEL1_Pin | ROW_SEL3_Pin);
-			ROW_SEL2_GPIO_Port->BSRR = ROW_SEL2_Pin;
+		case 2:														//2 HIGH - PIN 15 - 3,0 & 3,2 TOUCH, ROW 2
+			GPIOA->BRR |= (ROW_SEL1_Pin | ROW_SEL3_Pin);
+			ROW_SEL2_GPIO_Port->BSRR |= ROW_SEL2_Pin;
 			break;
-		case 3:														//1 + 2 HIGH - PIN 12 - 0,0 & 0,2 TOUCH*
-			GPIOA->BRR = ROW_SEL3_Pin;
-			GPIOA->BSRR = ROW_SEL1_Pin;
-			ROW_SEL2_GPIO_Port->BSRR = ROW_SEL2_Pin;
+		case 3:														//3 HIGH - PIN 1 - 0,1 & 0,3 TOUCH, ROW 3
+			ROW_SEL2_GPIO_Port->BRR |= ROW_SEL2_Pin;
+			GPIOA->BRR |= ROW_SEL1_Pin;
+			GPIOA->BSRR |= ROW_SEL3_Pin;
 			break;
-		case 4:														//3 HIGH - PIN 1 - 0,1 & 0,3 TOUCH
-			ROW_SEL2_GPIO_Port->BRR = ROW_SEL2_Pin;
-			GPIOA->BRR = ROW_SEL1_Pin;
-			GPIOA->BSRR = ROW_SEL3_Pin;
+		case 4:														//3 + 2 HIGH - PIN 2 - 1,1 & 1,3 TOUCH, ROW 4
+			GPIOA->BRR |= ROW_SEL1_Pin;
+			GPIOA->BSRR |= ROW_SEL3_Pin;
+			ROW_SEL2_GPIO_Port->BSRR |= ROW_SEL2_Pin;
 			break;
-		case 5:														//3 + 1 HIGH - PIN 5 - 2,1 & 2,3 TOUCH
-			ROW_SEL2_GPIO_Port->BRR = ROW_SEL2_Pin;
-			GPIOA->BSRR = (ROW_SEL1_Pin | ROW_SEL3_Pin);
+		case 5:														//ALL HIGH - PIN 4 - 3,1 & 3,3 TOUCH, ROW 5
+			GPIOA->BSRR |= (ROW_SEL1_Pin | ROW_SEL3_Pin);
+			ROW_SEL2_GPIO_Port->BSRR |= ROW_SEL2_Pin;
 			break;
-		case 6:														//3 + 2 HIGH - PIN 2 - 1,1 & 1,3 TOUCH*
-			GPIOA->BRR = ROW_SEL1_Pin;
-			GPIOA->BSRR = ROW_SEL3_Pin;
-			ROW_SEL2_GPIO_Port->BSRR = ROW_SEL2_Pin;
+		case 6:														//3 + 1 HIGH - PIN 5 - 2,1 & 2,3 TOUCH, ROW 6
+			ROW_SEL2_GPIO_Port->BRR |= ROW_SEL2_Pin;
+			GPIOA->BSRR |= (ROW_SEL1_Pin | ROW_SEL3_Pin);
 			break;
-		case 7:														//ALL HIGH - PIN 4 - 3,1 & 3,3 TOUCH*
-			GPIOA->BSRR = (ROW_SEL1_Pin | ROW_SEL3_Pin);
-			ROW_SEL2_GPIO_Port->BSRR = ROW_SEL2_Pin;
+		case 7:														//1 + 2 HIGH - PIN 12 - 0,0 & 0,2 TOUCH, ROW 7
+			GPIOA->BRR |= ROW_SEL3_Pin;
+			GPIOA->BSRR |= ROW_SEL1_Pin;
+			ROW_SEL2_GPIO_Port->BSRR |= ROW_SEL2_Pin;
 			break;
 	}
-
-	GPIOA->BSRR  = ROW_SEL_EN_Pin;	//SET ROW SEL LOW TO ENABLE OUTPUT
 }

@@ -59,17 +59,25 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 			currentTouchPoint = 0;
 			calibrationSampleCount++;
 		}
-		selectRow(currentTouchPoint);
+		DisableRowEn();
+		SelectRow(currentTouchPoint);
+		EnableRowEn();
 		InitTouch_ADC();
 	}
 	else{
 		if(currentTouchPoint==MAXTOUCHCHANNELS/2){
-		//if(currentTouchPoint==thisPanel.touchChannels/2){
 			currentTouchPoint = 0;
 		}
-		else{
-			selectRow(currentTouchPoint);
+		if (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE){
+			DisableRowEn();
+			SelectRow(currentTouchPoint);
+			EnableRowEn();
 			InitTouch_ADC();
+		}
+		else{
+			if(thisPanel.touchActive){
+				InitTouch_ADC();
+			}
 		}
 	}
 }
