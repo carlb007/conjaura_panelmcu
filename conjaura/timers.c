@@ -7,49 +7,70 @@
 
 #include "timers.h"
 
+uint16_t timeDelays[8] = {75,140,280,560,1120,2240,4480,8960};
+
 void InitTimers(){
 	__HAL_RCC_TIM6_CLK_ENABLE();
-	TIM6->PSC = 4;
+	__HAL_RCC_TIM7_CLK_ENABLE();
+
+	TIM6->PSC = 2;
 	TIM6->ARR = 0;
-	TIM6->CR1 = 0;
+	TIM6->CR1 = 0;		//HALT AND STOP COUNTER AT EVENT
 	TIM6->EGR |= TIM_EGR_UG;
-	TIM6->SR = ~1;
-	TIM6->DIER = 1;
+	TIM6->SR = 0;		//CLEAR INTERUPT FLAG
+	TIM6->DIER = 1;		//ENABLE INTERUPT
 	HAL_NVIC_EnableIRQ(TIM6_IRQn);
+
+
+	TIM7->PSC = 9;
+	TIM7->ARR = 0;
+	TIM7->CR1 = 0;				//HALT AND STOP COUNTER AT EVENT
+	TIM7->EGR |= TIM_EGR_UG;	//NEED TO FIRE EVENT REGISTER TO LATCH IN UPDATED PRESCALER.
+	TIM7->SR = 0;				//CLEAR INTERUPT FLAG
+	TIM7->DIER = 0;				//DISABLE INTERUPT
+	HAL_NVIC_EnableIRQ(TIM7_IRQn);
 }
 
 void SetAndStartTimer6(uint16_t duration){
+	//printf("Dur %d \n",duration);
 	TIM6->ARR = duration;
-	TIM6->CR1 |= TIM_CR1_CEN;										//START TIMER
+	TIM6->CNT = 0;													//ZERO TIMER
+	TIM6->CR1 = 1;										//START TIMER
 }
 
 void ClearAndPauseTimer6(){
-	TIM6->CR1 &= ~TIM_CR1_CEN;										//PAUSE TIMER
+	//printf("Dur %d \n",TIM6->CNT);
+	TIM6->CR1 = 0;										//PAUSE TIMER
 	TIM6->CNT = 0;													//ZERO TIMER
 	TIM6->SR = 0;													//CLEAR THE UPDATE EVENT FLAG
 }
 
 void TIM6_IRQHandler(){
 	ClearAndPauseTimer6();
-	LEDDataTransmit();
-	//printf("timer callback \n");
+	if(renderState.immediateJump==FALSE){
+		LEDDataTransmit();
+	}
+	else{
+		renderState.immediateJump = FALSE;
+		FinaliseLEDData();
+	}
+}
 
+void TIM7_IRQHandler(){
+	ClearAndPauseTimer7();
+	printf("7 called\n");
+}
 
+void SetAndStartTimer7(uint16_t duration){
+	//printf("Time 7 Dur %d \n",duration);
+	//TIM7->EGR = 1;
+	TIM7->ARR = duration;
+	TIM7->CNT = 0;													//ZERO TIMER
+	TIM7->CR1 |= TIM_CR1_CEN;										//START TIMER
+}
 
-
-
-		//renderState.streamInProgress = TRUE;
-
-		//hspi1.Init.DataSize = SPI_DATASIZE_16BIT;
-		//HAL_SPI_Transmit_DMA(&hspi1, &bamBuffer1[dataPos16Bit], 6);
-
-	//}
-	//else{
-	//	renderState.immediateJump = FALSE;
-	//	FinaliseLEDData();
-	//}
-
-	//HAL_SPI_Transmit_DMA(&hspi1, testData, 12);
-	//hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-	//HAL_SPI_Transmit_DMA(&hspi1, testData, 12);
+void ClearAndPauseTimer7(){
+	TIM7->CR1 &= ~TIM_CR1_CEN;										//PAUSE TIMER
+	TIM7->CNT = 0;													//ZERO TIMER
+	TIM7->SR = 0;													//CLEAR THE UPDATE EVENT FLAG
 }

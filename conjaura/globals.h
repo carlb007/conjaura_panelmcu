@@ -170,13 +170,15 @@ struct Rendering {
 	uint32_t framesReceived;		//SIMPLE TRACKING TALLY FOR DEBUG PURPOSES.
 	uint8_t flipFlopState;			//SWITCH BETWEEN RENDER AND OUTPUT BUFFERS
 	uint8_t awaitingSwitch;			//IS A RENDER REQUEST PENDING
-	uint8_t storedData;				//HAVE WE STORED OUR RECEIVED DATA WHEN WE WERE THE TARGET
-	uint8_t parsedData;				//HAVE WE PREPPED AND PARSED OUR DATA INTO BAM FORMAT
+	volatile uint8_t storedData;				//HAVE WE STORED OUR RECEIVED DATA WHEN WE WERE THE TARGET
+	volatile uint8_t parsedData;				//HAVE WE PREPPED AND PARSED OUR DATA INTO BAM FORMAT
 	uint8_t bamTimerStarted;		//HAVE WE STARED OUR RENDER/BAM TIMER?
 	uint8_t currentBamBit;			//TRACK OUR CURRENT BAM STEP
 	uint8_t currentRow;				//TRACK OUR ROW STEP
-	uint8_t firstRender;	//IS THIS OUR FIRST RENDER AFTER A RESTART?
+	volatile uint8_t firstRender;			//IS THIS OUR FIRST RENDER AFTER A RESTART?
 	uint8_t immediateJump;			//TRACKING FOR BAM 0 FOR QUICKER TRANSFER
+	uint16_t rowOffset;				//USED IN RENDER TRACKING LOOP
+	uint16_t bamOffset;				//USED IN RENDER TRACKING LOOP
 } renderState;
 
 
@@ -187,7 +189,7 @@ struct PanelInfLookup {
 	uint8_t periperalByteSize;				//LENDTH OF DATA RETURNED FOR PERIPHERALS AFTER SEND. CALC BASED ON 1: PERIP ACTIVE, 2: DATA RETURN SIZE
 } panelInfoLookup[MAX_PANELS];
 
-uint16_t timeDelays[8];				//WAIT TIME FOR EACH BAM BIT CYCLE
+
 
 uint8_t spiBufferRX[RX_BUFFER_SIZE];
 uint8_t * bufferSPI_RX;

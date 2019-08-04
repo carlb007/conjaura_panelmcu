@@ -12,5 +12,7 @@ void DMA1_1_IRQ(){
 	DMA1->IFCR |= (1|2);		//CLEAR ALL CHANNEL 1 INTERUPT
 	DMA1_Channel1->CCR &= ~1;	//DISABLE DMA
 
-	FinaliseLEDData();
+	if(renderState.immediateJump==FALSE){
+		FinaliseLEDData();
+	}
 }

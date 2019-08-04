@@ -13,6 +13,7 @@ uint16_t calibrationSampleCount = 0;
 uint8_t currentTouchPoint = 0;
 
 void InitTouch_ADC(){
+	//SetAndStartTimer7(60000);
 	globalVals.touchRunning = TRUE;
 	HAL_StatusTypeDef resp = HAL_ADC_Start_DMA(&hadc1, ADCRead, ADCHANNELS);
 }
@@ -31,7 +32,6 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 				thisPanel.touchChannel[ch].baseReading /= CALIBRATIONSAMPLES;
 			}
 			globalVals.touchCalibrated = TRUE;
-			globalVals.touchRunning = FALSE;
 			//printf("ADC: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d \n",touchChannel[0].baseReading, touchChannel[1].baseReading, touchChannel[2].baseReading, touchChannel[3].baseReading,touchChannel[4].baseReading, touchChannel[5].baseReading, touchChannel[6].baseReading, touchChannel[7].baseReading,touchChannel[8].baseReading, touchChannel[9].baseReading, touchChannel[10].baseReading, touchChannel[11].baseReading,touchChannel[12].baseReading, touchChannel[13].baseReading, touchChannel[14].baseReading, touchChannel[15].baseReading);
 			//printf("ADC CALIB: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[1].baseReading, thisPanel.touchChannel[5].baseReading, thisPanel.touchChannel[11].baseReading, thisPanel.touchChannel[15].baseReading);
 		}
@@ -49,36 +49,26 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 				if (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE){
 					SetAndSendAddress();
 				}
+				//uint16_t val = TIM7->CNT;
+				//printf("ADC TIME: %d \n",val);
 				//printf("ADC: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[8].value, thisPanel.touchChannel[10].value, thisPanel.touchChannel[13].value, thisPanel.touchChannel[15].value);
 			}
 			//printf("ADC: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[8].value, thisPanel.touchChannel[10].value, thisPanel.touchChannel[13].value, thisPanel.touchChannel[15].value);
 		}
 	}
 	currentTouchPoint++;
-	if(!globalVals.touchCalibrated){
-		if(currentTouchPoint==MAXTOUCHCHANNELS/2){
-			currentTouchPoint = 0;
-			calibrationSampleCount++;
-		}
+	if(!globalVals.touchCalibrated || (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE)){
 		DisableRowEn();
-		SelectRow(currentTouchPoint);
+		SelectRow(&currentTouchPoint);
 		EnableRowEn();
 		InitTouch_ADC();
 	}
-	else{
-		if(currentTouchPoint==MAXTOUCHCHANNELS/2){
-			currentTouchPoint = 0;
-		}
-		if (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE){
-			DisableRowEn();
-			SelectRow(currentTouchPoint);
-			EnableRowEn();
-			InitTouch_ADC();
-		}
-		else{
-			if(thisPanel.touchActive){
-				InitTouch_ADC();
-			}
+	if(currentTouchPoint==MAXTOUCHCHANNELS/2){
+		currentTouchPoint = 0;
+		if(!globalVals.touchCalibrated){
+			calibrationSampleCount++;
 		}
 	}
+	//ClearAndPauseTimer7();
+	globalVals.touchRunning = FALSE;
 }

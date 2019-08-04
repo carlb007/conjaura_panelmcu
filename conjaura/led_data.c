@@ -6,10 +6,9 @@
  */
 
 #include "led_data.h"
-extern SPI_HandleTypeDef hspi1,hspi2;
 uint16_t * renderOutput = bamBuffer1;
 
-
+uint8_t t = 0;
 
 void ConvertRawPixelData(){
 	uint16_t curLED = thisPanel.pixelCount;
@@ -138,50 +137,91 @@ void BamifyData(){
 		}
 	}
 	renderState.parsedData = TRUE;
+	renderState.firstRender = FALSE;
 	//47362 CYCLES TO GET HERE IN TC MODE
 	if(renderState.bamTimerStarted==FALSE){
 		renderState.bamTimerStarted = TRUE;
 		ConfigLEDDataSPI();
 		DataToLEDs();
-		SetAndStartTimer6(timeDelays[renderState.currentBamBit]);
+		//SetAndStartTimer6(timeDelays[renderState.currentBamBit]);
+		uint16_t timd = 64000;
+		SetAndStartTimer7(timd);
+		LEDDataTransmit();
 	}
 	else{
 		renderState.awaitingSwitch = TRUE;
 	}
 }
 
+
 void LEDDataTransmit(){
-	uint16_t dataPos8Bit = (renderState.currentRow*(12*thisPanel.bamBits))+(renderState.currentBamBit*12);
+	//if(renderState.currentRow == 0 && renderState.currentBamBit==0 && t==0){
+		//printf("startTime\n");
+		//ClearAndPauseTimer7();
+		//SetAndStartTimer7(60000);
+	//}
+	uint16_t dataPos8Bit = renderState.rowOffset+renderState.bamOffset;
 	uint8_t *data = (uint8_t *)bamBuffer1;
-
 	DMA1_Channel1->CCR &= ~769;									//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
-
+	//DMA1_Channel1->CCR |= 256;									//ENABLE 16 BIT MODE
 	DMA1_Channel1->CNDTR = 12;									//DATA LENGTH OF TRANSFER
-	DMA1_Channel1->CPAR = (uint32_t)&hspi1.Instance->DR;		//PERIPHERAL ADDRESS TARGET (SPI DATA REGISTER)
-	DMA1_Channel1->CMAR = (uint32_t)(data+dataPos8Bit);	//ADDRESS OF SRC DATA
-
+	DMA1_Channel1->CPAR = (uint32_t)&SPI1->DR;		//PERIPHERAL ADDRESS TARGET (SPI DATA REGISTER)
+	DMA1_Channel1->CMAR = (uint32_t)(data+dataPos8Bit);			//ADDRESS OF SRC DATA
 	DMA1->IFCR |= 1;											//FORCE BIT 0 TO A 1 TO CLEAR ALL CHANNEL 1 INTERUPT FLAGS
 	DMA1_Channel1->CCR |= 3;									//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
-
-	SetAndStartTimer6(timeDelays[renderState.currentBamBit]);
 }
 
+uint8_t fastJump = 0;
 void FinaliseLEDData(){
 	GPIOA->BSRR |= LED_LATCH_Pin;		//SET LATCH PIN HIGH READY TO LATCH
-	while((hspi1.Instance->SR & SPI_SR_BSY));
-
-
-	GPIOA->BRR |= LED_LATCH_Pin;		//SET LATCH LOW TO COMPLETE THE LATCHING PROCESS. DATA IS DISPLAYED ON OE (EN_GLK) LOW.
 	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;	//DISABLE ALL OUTPUTS OF LED DRIVER
-	SelectRow(renderState.currentRow);	//CHANGE ROW. NOTE WE DONT BOTHER SHUTTING OFF THE MULTIPLEXER AS THE LED DRIVER IS OFF ANYWAY.
-	GPIOB->BRR |= ROW_SEL_EN_GLK_Pin;	//ENABLE ALL OUTPUTS OF LED DRIVER AND SHIFT LATCHED DATA TO OUTPUT
-
+	//DO THIS WHILST WAITING FOR THE SPI TO CLOCK IN...DMA WILL ALWAYS END BEFORE SPI HAS FINISHED SPITTING OUT ITS BITS
+	uint8_t rowCache = renderState.currentRow;
+	uint8_t bamCache = renderState.currentBamBit;
+	//printf("call\n");
 	renderState.currentBamBit++;
+	renderState.bamOffset += 12;
+	fastJump = !fastJump;
 	if(renderState.currentBamBit == thisPanel.bamBits){
 		renderState.currentBamBit=0;
+		renderState.bamOffset = 0;
 		renderState.currentRow++;
+		//printf("row inc\n");
 		if(renderState.currentRow == thisPanel.scanlines){
 			renderState.currentRow = 0;
 		}
+		renderState.rowOffset = renderState.currentRow*(12*thisPanel.bamBits);
 	}
+	//renderState.bamOffset = renderState.currentBamBit*12;
+
+	//NOT NEEDED IF WE FILL OUT TIME WITH SOMETHING USEFUL FOR A FEW CLOCKS...
+	//while((hspi1.Instance->SR & SPI_SR_BSY));
+
+	GPIOA->BRR |= LED_LATCH_Pin;		//SET LATCH LOW TO COMPLETE THE LATCHING PROCESS. DATA IS DISPLAYED ON OE (EN_GLK) LOW.
+	SelectRow(rowCache);				//CHANGE ROW. NOTE WE DONT BOTHER SHUTTING OFF THE MULTIPLEXER AS THE LED DRIVER IS OFF ANYWAY.
+	GPIOB->BRR |= ROW_SEL_EN_GLK_Pin;	//ENABLE ALL OUTPUTS OF LED DRIVER AND SHIFT LATCHED DATA TO OUTPUT
+
+	SetAndStartTimer6(timeDelays[bamCache]);
+	if(thisPanel.touchActive==TRUE && bamCache==5){
+		InitTouch_ADC();
+	}
+
+	if(renderState.currentRow == 1){
+		if(renderState.currentBamBit==1 && t==0){
+			uint16_t val = TIM7->CNT;
+			ClearAndPauseTimer7();
+			printf("ROW TIME: %d \n",val);
+			t=1;
+		}
+	}
+
+	//BECAUSE THE DELAY IS SO SHORT ON BAM 0 WE IMMEDIATELY SEND BAM 1
+	//THIS REDUCES THE TIME (BAM TIME + SEND TIME) DOWN TO JUST BAM TIME.
+	//WE REPLICATE THIS FUNCTIONALITY ON BAMS 2,3 and 6. THIS LEAVES THE SPI/DMA TX LINE FREE FOR LONGER STINTS
+	//if(bamCache==0 || bamCache==2 || bamCache==4 || bamCache==6){	//USE CURRENTROW SO FIRST PASS DOESNT FIRE THIS
+	if(fastJump==1){
+		renderState.immediateJump = TRUE;
+		LEDDataTransmit();
+	}
+
 }

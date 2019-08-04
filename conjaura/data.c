@@ -77,14 +77,14 @@ void HandlePanelData(){
 
 		//RETURN OUR DATA IF NEEDED...
 		if(thisPanel.touchActive){
-			EnableRS485TX();
-			DataToEXT();
-			for(uint8_t ch=0;ch<thisPanel.touchChannels;ch++){
-				bufferSPI_TX[ch] = thisPanel.touchChannel[ch].value;
-			}
-			globalVals.dataState = SENDING_DATA_STREAM;
-			globalVals.pauseOutput = TRUE;
-			HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 16);
+			//EnableRS485TX();
+			//DataToEXT();
+			//for(uint8_t ch=0;ch<thisPanel.touchChannels;ch++){
+			//	bufferSPI_TX[ch] = thisPanel.touchChannel[ch].value;
+			//}
+			//globalVals.dataState = SENDING_DATA_STREAM;
+			//globalVals.pauseOutput = TRUE;
+			//HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 16);
 		}
 		renderState.storedData=FALSE;
 		renderState.parsedData=FALSE;

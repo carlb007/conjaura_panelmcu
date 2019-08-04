@@ -13,6 +13,7 @@
 #include "dma.h"
 #include "spi.h"
 #include "colour.h"
+#include "timers.h"
 
 uint8_t ledR[MAX_PANEL_LEDS];
 uint8_t ledG[MAX_PANEL_LEDS];

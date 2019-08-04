@@ -10,7 +10,7 @@ uint8_t * bufferSPI_RX = spiBufferRX;
 uint8_t * bufferSPI_TX = spiBufferTX;
 uint8_t * returnData = panelReturnData;
 
-uint16_t timeDelays[8] = {100,200,400,800,1600,3200,6400,12800};
+
 
 //*(bufferSPI_TX) = 1;
 //*(bufferSPI_TX+1) = 2;
