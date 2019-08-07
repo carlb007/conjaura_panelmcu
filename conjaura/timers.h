@@ -11,6 +11,7 @@
 #define TIMERS_H_
 
 uint16_t timeDelays[8];				//WAIT TIME FOR EACH BAM BIT CYCLE
+uint8_t timersEnabled;
 
 void InitTimers(void);
 void SetAndStartTimer6(uint16_t);

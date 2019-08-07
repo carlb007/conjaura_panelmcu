@@ -37,11 +37,13 @@ void EnsureDefaults(){
 }
 
 void Initialise(){
-	debugPrint("Ready\n","");
 	EnsureDefaults();
 	InitTimers();
+	ConfigLEDDataSPI();
+	DMAInit();
 	DataToEXT();
 	HeaderMode(TRUE);
 	LoadAddress();
 	InitTouch_ADC();
+	debugPrint("Ready\n","");
 }

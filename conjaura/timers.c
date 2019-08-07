@@ -8,6 +8,7 @@
 #include "timers.h"
 
 uint16_t timeDelays[8] = {75,140,280,560,1120,2240,4480,8960};
+uint8_t timersEnabled = FALSE;
 
 void InitTimers(){
 	__HAL_RCC_TIM6_CLK_ENABLE();
@@ -29,12 +30,13 @@ void InitTimers(){
 	TIM7->SR = 0;				//CLEAR INTERUPT FLAG
 	TIM7->DIER = 0;				//DISABLE INTERUPT
 	HAL_NVIC_EnableIRQ(TIM7_IRQn);
+	timersEnabled = TRUE;
 }
 
 void SetAndStartTimer6(uint16_t duration){
 	//printf("Dur %d \n",duration);
 	TIM6->ARR = duration;
-	TIM6->CNT = 0;													//ZERO TIMER
+	TIM6->CNT = 0;										//ZERO TIMER
 	TIM6->CR1 = 1;										//START TIMER
 }
 
@@ -47,12 +49,13 @@ void ClearAndPauseTimer6(){
 
 void TIM6_IRQHandler(){
 	ClearAndPauseTimer6();
-	if(renderState.immediateJump==FALSE){
-		LEDDataTransmit();
-	}
-	else{
-		renderState.immediateJump = FALSE;
-		FinaliseLEDData();
+	if(timersEnabled>0){
+		if(renderState.immediateJump==0){
+			LEDDataTransmit();
+		}
+		else{
+			FinaliseLEDData();
+		}
 	}
 }
 

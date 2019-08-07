@@ -141,9 +141,7 @@ void BamifyData(){
 	//47362 CYCLES TO GET HERE IN TC MODE
 	if(renderState.bamTimerStarted==FALSE){
 		renderState.bamTimerStarted = TRUE;
-		ConfigLEDDataSPI();
 		DataToLEDs();
-		//SetAndStartTimer6(timeDelays[renderState.currentBamBit]);
 		uint16_t timd = 64000;
 		SetAndStartTimer7(timd);
 		LEDDataTransmit();
@@ -155,14 +153,9 @@ void BamifyData(){
 
 
 void LEDDataTransmit(){
-	//if(renderState.currentRow == 0 && renderState.currentBamBit==0 && t==0){
-		//printf("startTime\n");
-		//ClearAndPauseTimer7();
-		//SetAndStartTimer7(60000);
-	//}
 	uint16_t dataPos8Bit = renderState.rowOffset+renderState.bamOffset;
 	uint8_t *data = (uint8_t *)bamBuffer1;
-	DMA1_Channel1->CCR &= ~769;									//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
+	DMA1_Channel1->CCR &= ~769;								//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
 	//DMA1_Channel1->CCR |= 256;									//ENABLE 16 BIT MODE
 	DMA1_Channel1->CNDTR = 12;									//DATA LENGTH OF TRANSFER
 	DMA1_Channel1->CPAR = (uint32_t)&SPI1->DR;		//PERIPHERAL ADDRESS TARGET (SPI DATA REGISTER)
@@ -173,32 +166,27 @@ void LEDDataTransmit(){
 
 uint8_t fastJump = 0;
 void FinaliseLEDData(){
+	//DO THIS WHILST WAITING FOR THE SPI TO CLOCK IN...DMA WILL ALWAYS END BEFORE SPI HAS FINISHED SPITTING OUT ITS BITS
 	GPIOA->BSRR |= LED_LATCH_Pin;		//SET LATCH PIN HIGH READY TO LATCH
 	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;	//DISABLE ALL OUTPUTS OF LED DRIVER
-	//DO THIS WHILST WAITING FOR THE SPI TO CLOCK IN...DMA WILL ALWAYS END BEFORE SPI HAS FINISHED SPITTING OUT ITS BITS
-	uint8_t rowCache = renderState.currentRow;
+	SelectRow(renderState.currentRow);				//CHANGE ROW. NOTE WE DONT BOTHER SHUTTING OFF THE MULTIPLEXER AS THE LED DRIVER IS OFF ANYWAY.
 	uint8_t bamCache = renderState.currentBamBit;
-	//printf("call\n");
 	renderState.currentBamBit++;
 	renderState.bamOffset += 12;
-	fastJump = !fastJump;
+	renderState.immediateJump = !renderState.immediateJump;
 	if(renderState.currentBamBit == thisPanel.bamBits){
 		renderState.currentBamBit=0;
 		renderState.bamOffset = 0;
 		renderState.currentRow++;
-		//printf("row inc\n");
 		if(renderState.currentRow == thisPanel.scanlines){
 			renderState.currentRow = 0;
 		}
 		renderState.rowOffset = renderState.currentRow*(12*thisPanel.bamBits);
 	}
-	//renderState.bamOffset = renderState.currentBamBit*12;
-
 	//NOT NEEDED IF WE FILL OUT TIME WITH SOMETHING USEFUL FOR A FEW CLOCKS...
 	//while((hspi1.Instance->SR & SPI_SR_BSY));
 
 	GPIOA->BRR |= LED_LATCH_Pin;		//SET LATCH LOW TO COMPLETE THE LATCHING PROCESS. DATA IS DISPLAYED ON OE (EN_GLK) LOW.
-	SelectRow(rowCache);				//CHANGE ROW. NOTE WE DONT BOTHER SHUTTING OFF THE MULTIPLEXER AS THE LED DRIVER IS OFF ANYWAY.
 	GPIOB->BRR |= ROW_SEL_EN_GLK_Pin;	//ENABLE ALL OUTPUTS OF LED DRIVER AND SHIFT LATCHED DATA TO OUTPUT
 
 	SetAndStartTimer6(timeDelays[bamCache]);
@@ -219,8 +207,7 @@ void FinaliseLEDData(){
 	//THIS REDUCES THE TIME (BAM TIME + SEND TIME) DOWN TO JUST BAM TIME.
 	//WE REPLICATE THIS FUNCTIONALITY ON BAMS 2,3 and 6. THIS LEAVES THE SPI/DMA TX LINE FREE FOR LONGER STINTS
 	//if(bamCache==0 || bamCache==2 || bamCache==4 || bamCache==6){	//USE CURRENTROW SO FIRST PASS DOESNT FIRE THIS
-	if(fastJump==1){
-		renderState.immediateJump = TRUE;
+	if(renderState.immediateJump>0){
 		LEDDataTransmit();
 	}
 
