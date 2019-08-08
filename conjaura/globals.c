@@ -39,7 +39,7 @@ void EnsureDefaults(){
 void Initialise(){
 	EnsureDefaults();
 	InitTimers();
-	ConfigLEDDataSPI();
+	InitSPI();
 	DMAInit();
 	DataToEXT();
 	HeaderMode(TRUE);

@@ -41,7 +41,7 @@ void SetAndSendAddress(){
 	EnableRS485TX();
 	DataToEXT();
 	globalVals.dataState = SENDING_ADDRESS_CALL;
-	HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 2);
+	TransmitSPI1DMA(bufferSPI_TX,2);
 }
 
 /*

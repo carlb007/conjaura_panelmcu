@@ -146,7 +146,7 @@ g_pfnVectors:
   .word  EXTI4_15_IRQHandler               /* EXTI Line 4 to 15            */
   .word  0                                 /* reserved                     */
   .word  DMA1_1_IRQ		          			/* DMA1 Channel 1               */
-  .word  DMA1_Channel2_3_IRQHandler        /* DMA1 Channel 2 and Channel 3 */
+  .word  DMA1_23_IRQ				        /* DMA1 Channel 2 and Channel 3 */
   .word  DMA1_Ch4_7_DMAMUX1_OVR_IRQHandler /* DMA1 Channel 4 to Channel 7, DMAMUX1 overrun */
   .word  ADC1_IRQHandler                   /* ADC1                         */
   .word  TIM1_BRK_UP_TRG_COM_IRQHandler    /* TIM1 Break, Update, Trigger and Commutation */
@@ -214,8 +214,8 @@ g_pfnVectors:
   .weak      DMA1_1_IRQ
   .thumb_set DMA1_1_IRQ,Default_Handler
 
-  .weak      DMA1_Channel2_3_IRQHandler
-  .thumb_set DMA1_Channel2_3_IRQHandler,Default_Handler
+  .weak      DMA1_23_IRQ
+  .thumb_set DMA1_23_IRQ,Default_Handler
 
   .weak      DMA1_Ch4_7_DMAMUX1_OVR_IRQHandler
   .thumb_set DMA1_Ch4_7_DMAMUX1_OVR_IRQHandler,Default_Handler

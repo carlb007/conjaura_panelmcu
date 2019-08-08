@@ -6,22 +6,12 @@
  */
 #include "data.h"
 
-extern SPI_HandleTypeDef hspi1,hspi2;
-
 void HeaderMode(uint8_t changeState){
 	EnableRS485RX();
 	if(changeState){
 		globalVals.dataState = AWAITING_HEADER;
 	}
-	HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, 2);
-
-	//DMA1_Channel2->CCR &= ~769;									//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
-	//DMA1_Channel2->CNDTR = 2;									//DATA LENGTH OF TRANSFER
-	//DMA1_Channel2->CPAR = (uint32_t)&SPI2->DR;					//ADDRESS OF SRC DATA
-	//DMA1_Channel2->CMAR = (uint32_t)bufferSPI_RX;				//PERIPHERAL ADDRESS SOURCE (SPI DATA REGISTER)
-	//DMA1->IFCR |= 16;											//FORCE BIT 5 TO A 1 TO CLEAR ALL CHANNEL 2 INTERUPT FLAGS
-	//DMA1_Channel2->CCR &= ~16;									//ENSURE BIT 5 IS 0 FOR RX MODE.
-	//DMA1_Channel2->CCR |= 3;									//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
+	ReceiveSPI2DMA(2);
 }
 
 void EnableRS485RX(){
@@ -73,7 +63,7 @@ void ParseHeader(){
 
 void DataReceive(){
 	globalVals.currentPanelSize = panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize;
-	HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.currentPanelSize);
+	ReceiveSPI2DMA(globalVals.currentPanelSize);
 	InitTouch_ADC();
 	globalVals.dataState = PANEL_DATA_STREAM;
 	globalVals.currentPanelReturnSize = panelInfoLookup[globalVals.currentPanelID].touchByteSize + panelInfoLookup[globalVals.currentPanelID].periperalByteSize;
@@ -105,7 +95,7 @@ void HandlePanelData(){
 			//KEEP AN EYE OUT FOR THE RETURN DATA WHIZZING BY IF THERES GOING TO BE ANY PRESENT
 			//EVEN THOUGH WE DONT NEED IT WE NEED TO TRACK WHEN THE NEXT PANEL DATA IS GOING TO ARRIVE
 			globalVals.dataState = PANEL_RETURN_STREAM;
-			HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.currentPanelReturnSize);
+			ReceiveSPI2DMA(globalVals.currentPanelReturnSize);
 		}
 		else{
 			HandleReturnData();
@@ -120,31 +110,6 @@ void HandleReturnData(){
 		globalVals.currentPanelID=0;
 	}
 	DataReceive();
-}
-
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi){
-	//printf("here\n");
-	if(globalVals.dataState == PANEL_DATA_STREAM){
-		HandlePanelData();
-	}
-	else if(globalVals.dataState == PANEL_RETURN_STREAM){
-		HandleReturnData();
-	}
-	else if(globalVals.dataState == AWAITING_HEADER){
-		ParseHeader();
-	}
-	else if(globalVals.dataState == AWAITING_ADDRESS_CALLS){
-		AddressHeader();
-	}
-	else if(globalVals.dataState == AWAITING_PALETTE_DATA){
-		HandlePaletteData();
-	}
-	else if(globalVals.dataState == AWAITING_GAMMA_DATA){
-		HandleGammaData();
-	}
-	else if(globalVals.dataState == AWAITING_CONF_DATA){
-		HandleConfigData();
-	}
 }
 
 

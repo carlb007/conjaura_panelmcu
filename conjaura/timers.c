@@ -16,12 +16,10 @@ void InitTimers(){
 
 	TIM6->PSC = 2;
 	TIM6->ARR = 0;
-	TIM6->CR1 = 0;		//HALT AND STOP COUNTER AT EVENT
-	TIM6->EGR |= TIM_EGR_UG;
-	TIM6->SR = 0;		//CLEAR INTERUPT FLAG
-	TIM6->DIER = 1;		//ENABLE INTERUPT
-	HAL_NVIC_EnableIRQ(TIM6_IRQn);
-
+	TIM6->CR1 = 0;				//HALT AND STOP COUNTER AT EVENT
+	TIM6->EGR |= TIM_EGR_UG;	//NEED TO FIRE EVENT REGISTER TO LATCH IN UPDATED PRESCALER.
+	TIM6->SR = 0;				//CLEAR INTERUPT FLAG
+	TIM6->DIER = 0;				//DISABLE INTERUPT
 
 	TIM7->PSC = 9;
 	TIM7->ARR = 0;
@@ -29,7 +27,9 @@ void InitTimers(){
 	TIM7->EGR |= TIM_EGR_UG;	//NEED TO FIRE EVENT REGISTER TO LATCH IN UPDATED PRESCALER.
 	TIM7->SR = 0;				//CLEAR INTERUPT FLAG
 	TIM7->DIER = 0;				//DISABLE INTERUPT
-	HAL_NVIC_EnableIRQ(TIM7_IRQn);
+
+	TIM6->DIER = 1;				//ENABLE INTERUPT FOR TIMER 6
+	NVIC_EnableIRQ(TIM6_IRQn);
 	timersEnabled = TRUE;
 }
 
@@ -49,13 +49,11 @@ void ClearAndPauseTimer6(){
 
 void TIM6_IRQHandler(){
 	ClearAndPauseTimer6();
-	if(timersEnabled>0){
-		if(renderState.immediateJump==0){
-			LEDDataTransmit();
-		}
-		else{
-			FinaliseLEDData();
-		}
+	if(renderState.immediateJump==0){
+		LEDDataTransmit();
+	}
+	else{
+		FinaliseLEDData();
 	}
 }
 

@@ -155,13 +155,7 @@ void BamifyData(){
 void LEDDataTransmit(){
 	uint16_t dataPos8Bit = renderState.rowOffset+renderState.bamOffset;
 	uint8_t *data = (uint8_t *)bamBuffer1;
-	DMA1_Channel1->CCR &= ~769;								//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
-	//DMA1_Channel1->CCR |= 256;									//ENABLE 16 BIT MODE
-	DMA1_Channel1->CNDTR = 12;									//DATA LENGTH OF TRANSFER
-	DMA1_Channel1->CPAR = (uint32_t)&SPI1->DR;		//PERIPHERAL ADDRESS TARGET (SPI DATA REGISTER)
-	DMA1_Channel1->CMAR = (uint32_t)(data+dataPos8Bit);			//ADDRESS OF SRC DATA
-	DMA1->IFCR |= 1;											//FORCE BIT 0 TO A 1 TO CLEAR ALL CHANNEL 1 INTERUPT FLAGS
-	DMA1_Channel1->CCR |= 3;									//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
+	TransmitSPI1DMA(data+dataPos8Bit,12);
 }
 
 uint8_t fastJump = 0;
@@ -191,7 +185,7 @@ void FinaliseLEDData(){
 
 	SetAndStartTimer6(timeDelays[bamCache]);
 	if(thisPanel.touchActive==TRUE && bamCache==5){
-		InitTouch_ADC();
+		//InitTouch_ADC();
 	}
 
 	if(renderState.currentRow == 1){

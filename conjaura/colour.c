@@ -16,7 +16,8 @@ void ColourHeader(){
 	if(thisPanel.colourMode == PALETTE_COLOUR){
 		thisPanel.paletteSize = *(bufferSPI_RX+1);
 		globalVals.dataState = AWAITING_PALETTE_DATA;
-		HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, (thisPanel.paletteSize+1)*3);
+		//HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, (thisPanel.paletteSize+1)*3);
+		ReceiveSPI2DMA((thisPanel.paletteSize+1)*3);
 	}
 	else{
 		HeaderMode(TRUE);

@@ -14,12 +14,14 @@ void ConfigHeader(){
 	if(globalVals.configSubMode == PANEL_INF){
 		globalVals.totalPanels  = *(bufferSPI_RX+1);
 		globalVals.dataState = AWAITING_CONF_DATA;
-		HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.totalPanels*4);
+		ReceiveSPI2DMA(globalVals.totalPanels*4);
+		//HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.totalPanels*4);
 	}
 	else if(globalVals.configSubMode == GAMMA){
 		globalVals.dataState = AWAITING_GAMMA_DATA;
 		GammaSetup();
-		HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, thisPanel.gammaSize);
+		ReceiveSPI2DMA(thisPanel.gammaSize);
+		//HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, thisPanel.gammaSize);
 	}
 }
 
