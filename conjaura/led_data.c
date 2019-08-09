@@ -184,9 +184,6 @@ void FinaliseLEDData(){
 	GPIOB->BRR |= ROW_SEL_EN_GLK_Pin;	//ENABLE ALL OUTPUTS OF LED DRIVER AND SHIFT LATCHED DATA TO OUTPUT
 
 	SetAndStartTimer6(timeDelays[bamCache]);
-	if(thisPanel.touchActive==TRUE && bamCache==5){
-		//InitTouch_ADC();
-	}
 
 	if(renderState.currentRow == 1){
 		if(renderState.currentBamBit==1 && t==0){
@@ -204,5 +201,8 @@ void FinaliseLEDData(){
 	if(renderState.immediateJump>0){
 		LEDDataTransmit();
 	}
-
+	//ADC DATA COLLECTION IS DONE DURING BAM1 - WE HAVE APROX 400 CYCLES TO GET THIS DONE.
+	if(thisPanel.touchActive==TRUE && bamCache==2){
+		InitTouch_ADC();
+	}
 }

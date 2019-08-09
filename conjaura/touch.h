@@ -21,4 +21,6 @@ uint8_t *ADCRead;
 void InitTouch_ADC(void);
 void DeInitTouch_ADC(void);
 
+void ADCConversionComplete(void);
+
 #endif /* TOUCH_H_ */

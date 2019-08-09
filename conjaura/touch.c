@@ -11,11 +11,39 @@ extern ADC_HandleTypeDef hadc1;
 uint8_t * ADCRead = ADCReadings;
 uint16_t calibrationSampleCount = 0;
 uint8_t currentTouchPoint = 0;
+uint8_t DMASet = 0;
 
 void InitTouch_ADC(){
 	//SetAndStartTimer7(60000);
 	globalVals.touchRunning = TRUE;
-	HAL_StatusTypeDef resp = HAL_ADC_Start_DMA(&hadc1, ADCRead, ADCHANNELS);
+	//HAL_ADC_Start_DMA(&hadc1, ADCRead, ADCHANNELS);
+	while((ADC1->CR & 4) == ADC_CR_ADSTART);	//WAIT TIL ADC NOT BUSY
+	if(DMASet==0){
+		//if((ADC1->CR & 1) == ADC_CR_ADEN){
+			ADC1->CR |= ADC_CR_ADDIS;
+			while((ADC1->CR & 2) == ADC_CR_ADDIS);
+			ADC1->CFGR1 |= ADC_CFGR1_DMAEN;
+			ADC1->CR |= ADC_CR_ADEN;
+			ADC1->IER |= (ADC_IT_OVR | ADC_IT_EOS);
+			DMA1_Channel4->CPAR = (uint32_t)&ADC1->DR;				//ADDRESS OF SRC DATA
+			DMA1_Channel4->CMAR = (uint32_t)ADCRead;				//PERIPHERAL ADDRESS SOURCE (ADC DATA REGISTER)
+			DMASet = 1;
+		//}
+	}
+	//CLEAR OUT INTERUPT REGISTER.
+	//ADC1->IER &= ~((HAL_ADC_STATE_READY | HAL_ADC_STATE_REG_EOC | HAL_ADC_STATE_REG_OVR | HAL_ADC_STATE_REG_EOSMP | HAL_ADC_STATE_REG_BUSY));
+
+	//CLEAR INTERUPT FLAGS.
+	ADC1->ISR &= ~(ADC_FLAG_EOC | ADC_FLAG_EOS | ADC_FLAG_OVR);
+
+	//DMA CONF...
+	//DMA1_Channel4->CCR &= ~769;								//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
+	DMA1_Channel4->CNDTR = 3;								//DATA LENGTH OF TRANSFER
+	DMA1_Channel4->CCR |= 3;								//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
+
+	//printf("called adc start\n");
+	ADC1->CR |= ADC_CR_ADSTART;
+
 }
 
 void DeInitTouch_ADC(){
@@ -23,7 +51,12 @@ void DeInitTouch_ADC(){
 	HAL_ADC_Stop_DMA(&hadc1);
 }
 
-HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
+
+ADCConversionComplete(){
+	DMA1_Channel4->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+	DMA1->IFCR |= (4096|8192);		//CLEAR ALL CHANNEL 1 INTERUPT
+	DMA1_Channel4->CCR &= ~1;	//DISABLE DMA
+
 	if(!globalVals.touchCalibrated){
 		thisPanel.touchChannel[currentTouchPoint].baseReading += *(ADCRead);
 		thisPanel.touchChannel[currentTouchPoint+8].baseReading += *(ADCRead+1);
@@ -32,7 +65,6 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 				thisPanel.touchChannel[ch].baseReading /= CALIBRATIONSAMPLES;
 			}
 			globalVals.touchCalibrated = TRUE;
-			//printf("ADC: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d \n",touchChannel[0].baseReading, touchChannel[1].baseReading, touchChannel[2].baseReading, touchChannel[3].baseReading,touchChannel[4].baseReading, touchChannel[5].baseReading, touchChannel[6].baseReading, touchChannel[7].baseReading,touchChannel[8].baseReading, touchChannel[9].baseReading, touchChannel[10].baseReading, touchChannel[11].baseReading,touchChannel[12].baseReading, touchChannel[13].baseReading, touchChannel[14].baseReading, touchChannel[15].baseReading);
 			//printf("ADC CALIB: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[1].baseReading, thisPanel.touchChannel[5].baseReading, thisPanel.touchChannel[11].baseReading, thisPanel.touchChannel[15].baseReading);
 		}
 	}
@@ -51,7 +83,7 @@ HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 				}
 				//uint16_t val = TIM7->CNT;
 				//printf("ADC TIME: %d \n",val);
-				//printf("ADC: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[8].value, thisPanel.touchChannel[10].value, thisPanel.touchChannel[13].value, thisPanel.touchChannel[15].value);
+				printf("ADC: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[8].value, thisPanel.touchChannel[10].value, thisPanel.touchChannel[13].value, thisPanel.touchChannel[15].value);
 			}
 			//printf("ADC: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[8].value, thisPanel.touchChannel[10].value, thisPanel.touchChannel[13].value, thisPanel.touchChannel[15].value);
 		}

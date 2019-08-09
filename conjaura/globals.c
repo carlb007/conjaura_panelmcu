@@ -41,6 +41,7 @@ void Initialise(){
 	InitTimers();
 	InitSPI();
 	DMAInit();
+	ADC1->CR |= ADC_CR_ADEN;
 	DataToEXT();
 	HeaderMode(TRUE);
 	LoadAddress();
