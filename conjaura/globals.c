@@ -6,9 +6,8 @@
  */
 #include "globals.h"
 
-uint8_t * bufferSPI_RX = spiBufferRX;
+uint8_t * bufferSPI_RX = spiBufferRX;	//spiBufferRXAlt
 uint8_t * bufferSPI_TX = spiBufferTX;
-uint8_t * returnData = panelReturnData;
 
 
 
@@ -32,8 +31,11 @@ void EnsureDefaults(){
 	globalVals.touchCalibrated = FALSE;
 	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;  //DISABLE ALL OUTPUTS ON LED DRIVER. LABELLED "OE" ON CHIP
 	GPIOA->BRR |= LED_LATCH_Pin;		//ENSURE LATCH IS DEFAULTED LOW
+
 	renderState.firstRender = TRUE;		//MARK AS FIRST RENDER
 	renderState.awaitingSwitch = FALSE;	//NO SWITCH NEEDED
+	globalVals.currentPanelID=0;
+	renderState.returnDataMode=FALSE;
 }
 
 void Initialise(){

@@ -6,6 +6,7 @@
  */
 
 #include "globals.h"
+#include "led_data.h"
 
 #ifndef TIMERS_H_
 #define TIMERS_H_

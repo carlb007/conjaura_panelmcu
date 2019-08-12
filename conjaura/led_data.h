@@ -28,8 +28,8 @@ uint8_t * streamOutput;						//FLIP FLOP POINTERS BETWEEN STREAM AND RENDER
 
 void ConvertRawPixelData(void);
 void BamifyData(void);
+
 void LEDDataTransmit(void);
 void FinaliseLEDData(void);
-
 
 #endif /* LED_DATA_H_ */

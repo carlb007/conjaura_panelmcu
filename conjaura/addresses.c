@@ -38,8 +38,8 @@ void SetAndSendAddress(){
 	//CREATE TRANSMIT ADDRESS HEADER TO INC ALL OTHER PANELS LASTSEENADDRESS TALLY
 	*bufferSPI_TX = 64 | 48; //01110000
 	*(bufferSPI_TX+1) = 0;
-	EnableRS485TX();
 	DataToEXT();
+	EnableRS485TX();
 	globalVals.dataState = SENDING_ADDRESS_CALL;
 	TransmitSPI1DMA(bufferSPI_TX,2);
 }

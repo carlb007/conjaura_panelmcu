@@ -69,21 +69,21 @@ ADCConversionComplete(){
 		}
 	}
 	else{
-		thisPanel.touchChannel[currentTouchPoint].value = *(ADCRead) - (thisPanel.touchChannel[currentTouchPoint].baseReading-1);
-		thisPanel.touchChannel[currentTouchPoint+8].value = *(ADCRead+1) - (thisPanel.touchChannel[currentTouchPoint+8].baseReading-1);
+		spiBufferTX[currentTouchPoint] = *(ADCRead) - (thisPanel.touchChannel[currentTouchPoint].baseReading-1);
+		spiBufferTX[currentTouchPoint+8] = *(ADCRead+1) - (thisPanel.touchChannel[currentTouchPoint+8].baseReading-1);
+		spiBufferTX[TOUCH_BUFFER_SIZE+globalVals.peripheralDataPoint] = *(ADCRead+2);
 		globalVals.peripheralDataPoint++;
-		*(returnData+TOUCH_BUFFER_SIZE+1+globalVals.peripheralDataPoint) = *(ADCRead+2);
 		if(globalVals.peripheralDataPoint==PERIPHERAL_SIZE-2){
 			globalVals.peripheralDataPoint = 0;
 		}
 		if(currentTouchPoint==7){
-			if(thisPanel.touchChannel[10].value>2 || thisPanel.touchChannel[8].value>2 || thisPanel.touchChannel[13].value>2 || thisPanel.touchChannel[15].value>2){
+			if(spiBufferTX[10]>2 || spiBufferTX[8]>2 || spiBufferTX[13]>2 || spiBufferTX[15]>2){
 				if (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE){
 					SetAndSendAddress();
 				}
 				//uint16_t val = TIM7->CNT;
 				//printf("ADC TIME: %d \n",val);
-				printf("ADC: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[8].value, thisPanel.touchChannel[10].value, thisPanel.touchChannel[13].value, thisPanel.touchChannel[15].value);
+				printf("ADC: BL %d, BR %d, TL %d, TR %d \n",spiBufferTX[8], spiBufferTX[10], spiBufferTX[13], spiBufferTX[15]);
 			}
 			//printf("ADC: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[8].value, thisPanel.touchChannel[10].value, thisPanel.touchChannel[13].value, thisPanel.touchChannel[15].value);
 		}
@@ -91,7 +91,7 @@ ADCConversionComplete(){
 	currentTouchPoint++;
 	if(!globalVals.touchCalibrated || (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE)){
 		DisableRowEn();
-		SelectRow(&currentTouchPoint);
+		SelectRow(currentTouchPoint);
 		EnableRowEn();
 		InitTouch_ADC();
 	}

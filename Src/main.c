@@ -139,15 +139,19 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if(renderState.storedData==TRUE && renderState.parsedData==FALSE){
-		  if(renderState.firstRender==TRUE){
-			  BamifyData();
+	  if(renderState.waitingProcessing==TRUE){
+		  if(renderState.storedData==FALSE){
+			  ConvertRawPixelData();
 		  }
 		  else{
-			  if(renderState.currentBamBit==4){
-				  //WAIT FOR AN AMPLE GAP
+			  if(renderState.parsedData==FALSE){
 				  BamifyData();
 			  }
+		  }
+	  }
+	  else if(renderState.waitingToReturn==TRUE){
+		  if(renderState.currentBamBit>5){
+			  SendReturnData();
 		  }
 	  }
     /* USER CODE END WHILE */

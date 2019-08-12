@@ -24,10 +24,11 @@ void EnableRowEn(void);
 void ParseHeader(void);
 
 void HandlePanelData(void);
-void HandleReturnData(void);
 void DataReceive(void);
+void UpdatePanelID(void);
 
-void DMA1_1_IRQ(void);
+void SendReturnData(void);
+void FinishDataSend(void);
 
 void SelectRow(uint8_t);
 

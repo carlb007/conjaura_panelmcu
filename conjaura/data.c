@@ -27,11 +27,15 @@ void EnableRS485TX(){
 void DataToLEDs(){
 	GPIOB->BSRR |= SEL_MEM_LED_Pin;
 	globalVals.dataToLEDs = TRUE;
+	while((SPI1->SR & SPI_SR_BSY));
+	ConfigLEDDataSPI();
 }
 
 void DataToEXT(){
 	GPIOB->BRR |= SEL_MEM_LED_Pin;
 	globalVals.dataToLEDs = FALSE;
+	while((SPI1->SR & SPI_SR_BSY));
+	ConfigReturnDataSPI();
 }
 
 void DisableRowEn(){
@@ -48,6 +52,7 @@ void ParseHeader(){
 	globalVals.headerMode = *bufferSPI_RX>>6;
 	if (globalVals.headerMode == DATA_MODE){
 		globalVals.currentPanelID = 0;
+		globalVals.dataState = PANEL_DATA_STREAM;
 		DataReceive();
 	}
 	else if (globalVals.headerMode == COLOUR_MODE){
@@ -61,69 +66,99 @@ void ParseHeader(){
 	}
 }
 
+
 void DataReceive(){
-	globalVals.currentPanelSize = panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize;
-	ReceiveSPI2DMA(globalVals.currentPanelSize);
-	InitTouch_ADC();
-	globalVals.dataState = PANEL_DATA_STREAM;
-	globalVals.currentPanelReturnSize = panelInfoLookup[globalVals.currentPanelID].touchByteSize + panelInfoLookup[globalVals.currentPanelID].periperalByteSize;
-}
-
-void HandlePanelData(){
-	//debugPrint("GOT DATA \n","");
-	if(globalVals.currentPanelID == thisPanel.address){
-
-		//RETURN OUR DATA IF NEEDED...
-		if(thisPanel.touchActive){
-			//EnableRS485TX();
-			//DataToEXT();
-			//for(uint8_t ch=0;ch<thisPanel.touchChannels;ch++){
-			//	bufferSPI_TX[ch] = thisPanel.touchChannel[ch].value;
-			//}
-			//globalVals.dataState = SENDING_DATA_STREAM;
-			//globalVals.pauseOutput = TRUE;
-			//HAL_SPI_Transmit_DMA(&hspi1, bufferSPI_TX, 16);
-		}
-		renderState.storedData=FALSE;
-		renderState.parsedData=FALSE;
-		renderState.framesReceived++;
-		//WE NEED TO STORE OUR DATA ASAP BEFORE NEXT DATA ARRIVES...
-		ConvertRawPixelData();
+	//WE WATCH FOR ALL DATA FLYING BY EVEN IF WE DONT NEED IT. ITS THE ONLY WAY WE HAVE OF TRACKING WHERE WERE AT WITHIN THE FLOW
+	if(renderState.returnDataMode==FALSE){
+		globalVals.currentPanelSize = panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize;
+		ReceiveSPI2DMA(globalVals.currentPanelSize);
 	}
 	else{
-		if(globalVals.currentPanelReturnSize){
-			//KEEP AN EYE OUT FOR THE RETURN DATA WHIZZING BY IF THERES GOING TO BE ANY PRESENT
-			//EVEN THOUGH WE DONT NEED IT WE NEED TO TRACK WHEN THE NEXT PANEL DATA IS GOING TO ARRIVE
-			globalVals.dataState = PANEL_RETURN_STREAM;
-			ReceiveSPI2DMA(globalVals.currentPanelReturnSize);
+		ReceiveSPI2DMA(globalVals.currentPanelReturnSize);
+	}
+}
+
+
+void UpdatePanelID(){
+	uint8_t panelIDCache = globalVals.currentPanelID;
+	if(renderState.returnDataMode==FALSE){
+		panelIDCache++;
+		if(panelIDCache==globalVals.totalPanels){
+			panelIDCache=0;
+			renderState.returnDataMode = !renderState.returnDataMode;
+		}
+	}
+	//CAN BECOME ACTIVE STRAIGHT AWAY
+	if(renderState.returnDataMode==TRUE){
+		uint16_t returnSize = 0;
+		uint8_t returnFound = FALSE;
+		while(returnSize==0 && panelIDCache<globalVals.totalPanels){
+			returnSize = panelInfoLookup[panelIDCache].touchByteSize + panelInfoLookup[panelIDCache].periperalByteSize;
+			if(returnSize>0){
+				returnFound = TRUE;
+			}
+			else{
+				panelIDCache++;
+			}
+		}
+		if(returnFound == TRUE){
+			globalVals.currentPanelReturnSize = returnSize;
 		}
 		else{
-			HandleReturnData();
+			panelIDCache=0;
+			renderState.returnDataMode = !renderState.returnDataMode;
+		}
+	}
+	globalVals.currentPanelID = panelIDCache;
+}
+
+
+void HandlePanelData(){
+	if(renderState.returnDataMode==FALSE){
+		if(globalVals.currentPanelID == thisPanel.address){
+			renderState.storedData=FALSE;
+			renderState.parsedData=FALSE;
+			renderState.waitingProcessing = TRUE;
+			renderState.rxBufferLocation = globalVals.bufferFlipFlopState;
+			//debugPrint("GOT DATA %d \n",renderState.rxBufferLocation);
+			renderState.framesReceived++;
 		}
 	}
 
+	UpdatePanelID();
+
+	if(renderState.returnDataMode==TRUE){
+		if(globalVals.currentPanelID == thisPanel.address){
+			//NO OTHER TESTS NEEDED. CANT GET HERE UNLESS UPDATE PANEL ID RESULTED IN POSITIVE CHECK
+			renderState.waitingToReturn = TRUE;
+		}
+		else{
+			DataReceive();
+		}
+	}
+	else{
+		DataReceive();
+	}
 }
 
-void HandleReturnData(){
-	globalVals.currentPanelID++;
-	if(globalVals.currentPanelID==globalVals.totalPanels){
-		globalVals.currentPanelID=0;
-	}
+
+void SendReturnData(){
+	globalVals.dataState = SENDING_DATA_STREAM;
+	TIM6->CR1 &= ~1;	//PAUSE LED TIMER
+	renderState.waitingToReturn = FALSE;
+	DataToEXT();
+	EnableRS485TX();
+	TransmitSPI1DMA(bufferSPI_TX, thisPanel.touchChannels);
+}
+
+void FinishDataSend(){
+	globalVals.dataState = PANEL_DATA_STREAM;
+	while((SPI1->SR & SPI_SR_BSY));
+	EnableRS485RX();
+	DataToLEDs();
+	UpdatePanelID();
 	DataReceive();
-}
-
-
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi){
-	if(globalVals.dataState == SENDING_DATA_STREAM){
-		EnableRS485RX();
-		DataToLEDs();
-		globalVals.pauseOutput = FALSE;
-		HandleReturnData();
-	}
-	else if(globalVals.dataState == SENDING_ADDRESS_CALL){
-		globalVals.dataState = AWAITING_ADDRESS_CALLS;
-		HeaderMode(FALSE);
-	}
+	TIM6->CR1 |= 1;	//RESUME LED TIMER
 }
 
 void SelectRow(uint8_t row){

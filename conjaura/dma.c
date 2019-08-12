@@ -62,13 +62,21 @@ void DMA1_4_Init(){
 }
 
 void DMA1_1_IRQ(){
-	//printf("Called\n");
 	DMA1_Channel1->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
 	DMA1->IFCR |= (1|2);		//CLEAR ALL CHANNEL 1 INTERUPT
 	DMA1_Channel1->CCR &= ~1;	//DISABLE DMA
 
-	if(renderState.immediateJump==FALSE){
-		FinaliseLEDData();
+	if(globalVals.dataState == PANEL_DATA_STREAM){
+		if(renderState.immediateJump==FALSE){
+			FinaliseLEDData();
+		}
+	}
+	else if(globalVals.dataState == SENDING_DATA_STREAM){
+		FinishDataSend();
+	}
+	else if(globalVals.dataState == SENDING_ADDRESS_CALL){
+		globalVals.dataState = AWAITING_ADDRESS_CALLS;
+		HeaderMode(FALSE);
 	}
 }
 
@@ -78,11 +86,8 @@ void DMA1_23_IRQ(){
 	DMA1->IFCR |= (16|32);		//CLEAR ALL CHANNEL 2 INTERUPT
 	DMA1_Channel2->CCR &= ~1;	//DISABLE DMA
 
-	if(globalVals.dataState == PANEL_DATA_STREAM){
+	if(globalVals.dataState == PANEL_DATA_STREAM){			//WAITING TO SEE NEXT PANELS LED DATA
 		HandlePanelData();
-	}
-	else if(globalVals.dataState == PANEL_RETURN_STREAM){
-		HandleReturnData();
 	}
 	else if(globalVals.dataState == AWAITING_HEADER){
 		ParseHeader();
@@ -104,11 +109,24 @@ void DMA1_23_IRQ(){
 
 
 void ReceiveSPI2DMA(uint16_t len){
+	//FLIP FLOP OUR RX BUFFER POINTER SO WE DONT OVER WRITE BEFORE WEVE SAVED AND PARSED
+	if(globalVals.dataState == PANEL_DATA_STREAM){
+		globalVals.bufferFlipFlopState = !globalVals.bufferFlipFlopState;
+		if(globalVals.bufferFlipFlopState==0){
+			bufferSPI_RX = spiBufferRX;
+		}
+		else{
+			bufferSPI_RX = spiBufferRXAlt;
+		}
+	}
+
 	//DMA1_Channel2->CCR &= ~769;								//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
 	DMA1_Channel2->CNDTR = len;									//DATA LENGTH OF TRANSFER
 	//DMA1_Channel2->CPAR = (uint32_t)&SPI2->DR;				//ADDRESS OF SRC DATA - SET ON INIT
-	//DMA1_Channel2->CMAR = (uint32_t)bufferSPI_RX;				//PERIPHERAL ADDRESS SOURCE (SPI DATA REGISTER) - SET ON INIT. ALWAYS BUFFER ADDR 0.
+	DMA1_Channel2->CMAR = (uint32_t)bufferSPI_RX;				//PERIPHERAL ADDRESS SOURCE (SPI DATA REGISTER) - SET ON INIT. ALWAYS BUFFER ADDR 0.
 	DMA1_Channel2->CCR |= 3;									//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
+
+
 }
 
 void TransmitSPI1DMA(uint8_t *ptr, uint16_t len){

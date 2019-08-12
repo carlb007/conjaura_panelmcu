@@ -7,7 +7,7 @@
 
 #include "timers.h"
 
-uint16_t timeDelays[8] = {75,140,280,560,1120,2240,4480,8960};
+uint16_t timeDelays[8] = {70,120,240,480,960,1920,3840,7680};
 uint8_t timersEnabled = FALSE;
 
 void InitTimers(){
@@ -34,14 +34,12 @@ void InitTimers(){
 }
 
 void SetAndStartTimer6(uint16_t duration){
-	//printf("Dur %d \n",duration);
 	TIM6->ARR = duration;
 	TIM6->CNT = 0;										//ZERO TIMER
 	TIM6->CR1 = 1;										//START TIMER
 }
 
 void ClearAndPauseTimer6(){
-	//printf("Dur %d \n",TIM6->CNT);
 	TIM6->CR1 = 0;										//PAUSE TIMER
 	TIM6->CNT = 0;													//ZERO TIMER
 	TIM6->SR = 0;													//CLEAR THE UPDATE EVENT FLAG
@@ -59,12 +57,9 @@ void TIM6_IRQHandler(){
 
 void TIM7_IRQHandler(){
 	ClearAndPauseTimer7();
-	printf("7 called\n");
 }
 
 void SetAndStartTimer7(uint16_t duration){
-	//printf("Time 7 Dur %d \n",duration);
-	//TIM7->EGR = 1;
 	TIM7->ARR = duration;
 	TIM7->CNT = 0;													//ZERO TIMER
 	TIM7->CR1 |= TIM_CR1_CEN;										//START TIMER

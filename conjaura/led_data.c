@@ -13,12 +13,20 @@ uint8_t t = 0;
 void ConvertRawPixelData(){
 	uint16_t curLED = thisPanel.pixelCount;
 	uint16_t srcOffset = 0;
+	uint8_t *bufferPtr;
+	if(renderState.rxBufferLocation==0){
+		bufferPtr = spiBufferRX;
+	}
+	else{
+		bufferPtr = spiBufferRXAlt;
+	}
+
 	if(thisPanel.colourMode == PALETTE_COLOUR){
 		srcOffset = thisPanel.pixelCount;
 		do{
-			ledB[--curLED] = paletteB[spiBufferRX[--srcOffset]];
-			ledG[curLED] = paletteG[spiBufferRX[srcOffset]];
-			ledR[curLED] = paletteR[spiBufferRX[srcOffset]];
+			ledB[--curLED] = paletteB[bufferPtr[--srcOffset]];
+			ledG[curLED] = paletteG[bufferPtr[srcOffset]];
+			ledR[curLED] = paletteR[bufferPtr[srcOffset]];
 		}
 		while(curLED>0);
 	}
@@ -27,37 +35,37 @@ void ConvertRawPixelData(){
 		srcOffset = thisPanel.pixelCount*2;
 		if(thisPanel.biasHC==0){		//GREEN BIAS 565
 			do{
-				ledB[--curLED] = spiBufferRX[--srcOffset] & 0x1F;
-				ledG[curLED] = (spiBufferRX[srcOffset] >>5) | ((spiBufferRX[--srcOffset] & 0x7) <<3) ;
-				ledR[curLED] = spiBufferRX[srcOffset] & 0xF8;
+				ledB[--curLED] = bufferPtr[--srcOffset] & 0x1F;
+				ledG[curLED] = (bufferPtr[srcOffset] >>5) | ((bufferPtr[--srcOffset] & 0x7) <<3) ;
+				ledR[curLED] = bufferPtr[srcOffset] & 0xF8;
 			}while(curLED>0);
 		}
 		else if(thisPanel.biasHC==1){	//RED BIAS 655
 			do{
-				ledB[--curLED] = spiBufferRX[--srcOffset] & 0x1F;
-				ledG[curLED] = (spiBufferRX[srcOffset] >>5) | ((spiBufferRX[--srcOffset] & 0x3) <<3) ;
-				ledR[curLED] = spiBufferRX[srcOffset] & 0xFC;
+				ledB[--curLED] = bufferPtr[--srcOffset] & 0x1F;
+				ledG[curLED] = (bufferPtr[srcOffset] >>5) | ((bufferPtr[--srcOffset] & 0x3) <<3) ;
+				ledR[curLED] = bufferPtr[srcOffset] & 0xFC;
 			}while(curLED>0);
 		}
 		else if(thisPanel.biasHC==2){	//BLUE BIAS	556
 			do{
-				ledB[--curLED] = spiBufferRX[--srcOffset] & 0x3F;
-				ledG[curLED] = (spiBufferRX[srcOffset] >>6) | ((spiBufferRX[--srcOffset] & 0x3) <<2) ;
-				ledR[curLED] = spiBufferRX[srcOffset] & 0xF8;
+				ledB[--curLED] = bufferPtr[--srcOffset] & 0x3F;
+				ledG[curLED] = (bufferPtr[srcOffset] >>6) | ((bufferPtr[--srcOffset] & 0x3) <<2) ;
+				ledR[curLED] = bufferPtr[srcOffset] & 0xF8;
 			}while(curLED>0);
 		}
 		else{							//EQUAL 15BIT COLOUR
 			do{
-				ledB[--curLED] = (spiBufferRX[--srcOffset] & 0x3E) >> 1;
-				ledG[curLED] = (spiBufferRX[srcOffset] >>6) | ((spiBufferRX[--srcOffset] & 0x3) <<2) ;
-				ledR[curLED] = spiBufferRX[srcOffset] & 0xF8;
+				ledB[--curLED] = (bufferPtr[--srcOffset] & 0x3E) >> 1;
+				ledG[curLED] = (bufferPtr[srcOffset] >>6) | ((bufferPtr[--srcOffset] & 0x3) <<2) ;
+				ledR[curLED] = bufferPtr[srcOffset] & 0xF8;
 			}while(curLED>0);
 		}
 	}
 	else{
 		//OPTIMISED
 		srcOffset = thisPanel.pixelCount*3;
-		uint8_t *bfr = spiBufferRX+srcOffset;
+		uint8_t *bfr = bufferPtr+srcOffset;
 		do{
 			ledB[--curLED] = *(--bfr);
 			ledG[curLED] = *(--bfr);
@@ -137,13 +145,16 @@ void BamifyData(){
 		}
 	}
 	renderState.parsedData = TRUE;
+	renderState.waitingProcessing = FALSE;
 	renderState.firstRender = FALSE;
 	//47362 CYCLES TO GET HERE IN TC MODE
 	if(renderState.bamTimerStarted==FALSE){
 		renderState.bamTimerStarted = TRUE;
 		DataToLEDs();
+		#if DEBUGMODE
 		uint16_t timd = 64000;
 		SetAndStartTimer7(timd);
+		#endif
 		LEDDataTransmit();
 	}
 	else{
@@ -158,7 +169,7 @@ void LEDDataTransmit(){
 	TransmitSPI1DMA(data+dataPos8Bit,12);
 }
 
-uint8_t fastJump = 0;
+
 void FinaliseLEDData(){
 	//DO THIS WHILST WAITING FOR THE SPI TO CLOCK IN...DMA WILL ALWAYS END BEFORE SPI HAS FINISHED SPITTING OUT ITS BITS
 	GPIOA->BSRR |= LED_LATCH_Pin;		//SET LATCH PIN HIGH READY TO LATCH
@@ -174,17 +185,19 @@ void FinaliseLEDData(){
 		renderState.currentRow++;
 		if(renderState.currentRow == thisPanel.scanlines){
 			renderState.currentRow = 0;
+			//renderState.waitingToReturn = TRUE;
 		}
 		renderState.rowOffset = renderState.currentRow*(12*thisPanel.bamBits);
 	}
 	//NOT NEEDED IF WE FILL OUT TIME WITH SOMETHING USEFUL FOR A FEW CLOCKS...
-	//while((hspi1.Instance->SR & SPI_SR_BSY));
+	//while((SPI1->SR & SPI_SR_BSY));
 
 	GPIOA->BRR |= LED_LATCH_Pin;		//SET LATCH LOW TO COMPLETE THE LATCHING PROCESS. DATA IS DISPLAYED ON OE (EN_GLK) LOW.
 	GPIOB->BRR |= ROW_SEL_EN_GLK_Pin;	//ENABLE ALL OUTPUTS OF LED DRIVER AND SHIFT LATCHED DATA TO OUTPUT
 
 	SetAndStartTimer6(timeDelays[bamCache]);
 
+	#if DEBUGMODE
 	if(renderState.currentRow == 1){
 		if(renderState.currentBamBit==1 && t==0){
 			uint16_t val = TIM7->CNT;
@@ -193,6 +206,7 @@ void FinaliseLEDData(){
 			t=1;
 		}
 	}
+	#endif
 
 	//BECAUSE THE DELAY IS SO SHORT ON BAM 0 WE IMMEDIATELY SEND BAM 1
 	//THIS REDUCES THE TIME (BAM TIME + SEND TIME) DOWN TO JUST BAM TIME.
@@ -201,7 +215,7 @@ void FinaliseLEDData(){
 	if(renderState.immediateJump>0){
 		LEDDataTransmit();
 	}
-	//ADC DATA COLLECTION IS DONE DURING BAM1 - WE HAVE APROX 400 CYCLES TO GET THIS DONE.
+	//ADC DATA COLLECTION IS DONE DURING BAM2 - WE HAVE APROX 840 CYCLES TO GET THIS DONE.
 	if(thisPanel.touchActive==TRUE && bamCache==2){
 		InitTouch_ADC();
 	}
