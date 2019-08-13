@@ -9,6 +9,19 @@
 
 
 void DMAInit(){
+	__HAL_RCC_DMA1_CLK_ENABLE();
+
+	  /* DMA interrupt init */
+	  /* DMA1_Channel1_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 1, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+	  /* DMA1_Channel2_3_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
+	  /* DMA1_Ch4_7_DMAMUX1_OVR_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(DMA1_Ch4_7_DMAMUX1_OVR_IRQn, 2, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Ch4_7_DMAMUX1_OVR_IRQn);
+
 	DMA1_1_Init();
 	DMA1_23_Init();
 	DMA1_4_Init();
@@ -41,7 +54,7 @@ void DMA1_23_Init(){
 	DMA1_Channel2->CCR |= 2;			//SET BIT 2 TO 1. TRANSFER COMPLETE INTERUPT ENABLED
 	DMA1_Channel2->CCR &= ~16;			//SET BIT 4 TO 0. DIRECTION - PERIPH TO MEM;
 	DMA1_Channel2->CCR |= 128;			//SET BIT 8 TO 1. MEM INCREMENT MODE.
-	DMA1_Channel2->CCR |= 8192;			//SET 13th > 12th BITS TO 1,0. HIGH PRIORITY MODE (LEV 3/4)
+	DMA1_Channel2->CCR |= 12288;		//SET 13th > 12th BITS TO 1,0. HIGHEST PRIORITY MODE (LEV 4/4)
 
 	DMAMUX1_Channel1->CCR = 18;			//SET MUX CHANNEL TO SPI 2 RX.
 }
@@ -89,36 +102,38 @@ void DMA1_23_IRQ(){
 	if(globalVals.dataState == PANEL_DATA_STREAM){			//WAITING TO SEE NEXT PANELS LED DATA
 		HandlePanelData();
 	}
-	else if(globalVals.dataState == AWAITING_HEADER){
-		ParseHeader();
+	else{
+		if(globalVals.dataState == AWAITING_HEADER){
+			ParseHeader();
+		}
+		else if(globalVals.dataState == AWAITING_ADDRESS_CALLS){
+			AddressHeader();
+		}
+		else if(globalVals.dataState == AWAITING_PALETTE_DATA){
+			HandlePaletteData();
+		}
+		else if(globalVals.dataState == AWAITING_GAMMA_DATA){
+			HandleGammaData();
+		}
+		else if(globalVals.dataState == AWAITING_CONF_DATA){
+			HandleConfigData();
+		}
 	}
-	else if(globalVals.dataState == AWAITING_ADDRESS_CALLS){
-		AddressHeader();
-	}
-	else if(globalVals.dataState == AWAITING_PALETTE_DATA){
-		HandlePaletteData();
-	}
-	else if(globalVals.dataState == AWAITING_GAMMA_DATA){
-		HandleGammaData();
-	}
-	else if(globalVals.dataState == AWAITING_CONF_DATA){
-		HandleConfigData();
-	}
-
 }
 
 
 void ReceiveSPI2DMA(uint16_t len){
 	//FLIP FLOP OUR RX BUFFER POINTER SO WE DONT OVER WRITE BEFORE WEVE SAVED AND PARSED
-	if(globalVals.dataState == PANEL_DATA_STREAM){
-		globalVals.bufferFlipFlopState = !globalVals.bufferFlipFlopState;
-		if(globalVals.bufferFlipFlopState==0){
-			bufferSPI_RX = spiBufferRX;
-		}
-		else{
-			bufferSPI_RX = spiBufferRXAlt;
-		}
-	}
+	//if(globalVals.dataState == PANEL_DATA_STREAM){
+	//	globalVals.bufferFlipFlopState = !globalVals.bufferFlipFlopState;
+	//	if(globalVals.bufferFlipFlopState==0){
+	//		bufferSPI_RX = spiBufferRX;
+	//	}
+	//	else{
+	//		bufferSPI_RX = spiBufferRXAlt;
+			//Runs First Data
+	//	}
+	//}
 
 	//DMA1_Channel2->CCR &= ~769;								//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
 	DMA1_Channel2->CNDTR = len;									//DATA LENGTH OF TRANSFER

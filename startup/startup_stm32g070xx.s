@@ -153,7 +153,7 @@ g_pfnVectors:
   .word  TIM1_CC_IRQHandler                /* TIM1 Capture Compare         */
   .word  0                                 /* reserved                     */
   .word  TIM3_IRQHandler                   /* TIM3                         */
-  .word  TIM6_IRQHandler                   /* TIM6                         */
+  .word  LEDDataTransmit                   /* TIM6                         */
   .word  TIM7_IRQHandler                   /* TIM7                         */
   .word  TIM14_IRQHandler                  /* TIM14                        */
   .word  TIM15_IRQHandler                  /* TIM15                        */
@@ -232,8 +232,8 @@ g_pfnVectors:
   .weak      TIM3_IRQHandler
   .thumb_set TIM3_IRQHandler,Default_Handler
 
-  .weak      TIM6_IRQHandler
-  .thumb_set TIM6_IRQHandler,Default_Handler
+  .weak      LEDDataTransmit
+  .thumb_set LEDDataTransmit,Default_Handler
 
   .weak      TIM7_IRQHandler
   .thumb_set TIM7_IRQHandler,Default_Handler

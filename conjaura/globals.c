@@ -33,7 +33,7 @@ void EnsureDefaults(){
 	GPIOA->BRR |= LED_LATCH_Pin;		//ENSURE LATCH IS DEFAULTED LOW
 
 	renderState.firstRender = TRUE;		//MARK AS FIRST RENDER
-	renderState.awaitingSwitch = FALSE;	//NO SWITCH NEEDED
+	renderState.drawBufferSwitchPending = FALSE;	//NO SWITCH NEEDED
 	globalVals.currentPanelID=0;
 	renderState.returnDataMode=FALSE;
 }

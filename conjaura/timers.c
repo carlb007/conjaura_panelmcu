@@ -29,7 +29,10 @@ void InitTimers(){
 	TIM7->DIER = 0;				//DISABLE INTERUPT
 
 	TIM6->DIER = 1;				//ENABLE INTERUPT FOR TIMER 6
-	NVIC_EnableIRQ(TIM6_IRQn);
+
+	HAL_NVIC_SetPriority(TIM6_IRQn, 1, 0);
+	HAL_NVIC_EnableIRQ(TIM6_IRQn);
+	//NVIC_EnableIRQ(TIM6_IRQn);
 	timersEnabled = TRUE;
 }
 
@@ -46,13 +49,15 @@ void ClearAndPauseTimer6(){
 }
 
 void TIM6_IRQHandler(){
-	ClearAndPauseTimer6();
-	if(renderState.immediateJump==0){
-		LEDDataTransmit();
-	}
-	else{
-		FinaliseLEDData();
-	}
+	//REDEFINED TO LEDDataTransmit DIRECTLY IN STARTUP
+
+	//ClearAndPauseTimer6();
+	//if(renderState.immediateJump==0){
+	//LEDDataTransmit();
+	//}
+	//else{
+	//	FinaliseLEDData();
+	//}
 }
 
 void TIM7_IRQHandler(){

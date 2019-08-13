@@ -70,8 +70,8 @@ void ParseHeader(){
 void DataReceive(){
 	//WE WATCH FOR ALL DATA FLYING BY EVEN IF WE DONT NEED IT. ITS THE ONLY WAY WE HAVE OF TRACKING WHERE WERE AT WITHIN THE FLOW
 	if(renderState.returnDataMode==FALSE){
-		globalVals.currentPanelSize = panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize;
-		ReceiveSPI2DMA(globalVals.currentPanelSize);
+		//globalVals.currentPanelSize = panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize;
+		ReceiveSPI2DMA(panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize);
 	}
 	else{
 		ReceiveSPI2DMA(globalVals.currentPanelReturnSize);
@@ -85,28 +85,26 @@ void UpdatePanelID(){
 		panelIDCache++;
 		if(panelIDCache==globalVals.totalPanels){
 			panelIDCache=0;
-			renderState.returnDataMode = !renderState.returnDataMode;
+			renderState.returnDataMode = TRUE;
 		}
 	}
 	//CAN BECOME ACTIVE STRAIGHT AWAY
 	if(renderState.returnDataMode==TRUE){
 		uint16_t returnSize = 0;
 		uint8_t returnFound = FALSE;
-		while(returnSize==0 && panelIDCache<globalVals.totalPanels){
+		while(returnFound==FALSE && panelIDCache<globalVals.totalPanels){
 			returnSize = panelInfoLookup[panelIDCache].touchByteSize + panelInfoLookup[panelIDCache].periperalByteSize;
 			if(returnSize>0){
+				globalVals.currentPanelReturnSize = returnSize;
 				returnFound = TRUE;
 			}
 			else{
 				panelIDCache++;
 			}
 		}
-		if(returnFound == TRUE){
-			globalVals.currentPanelReturnSize = returnSize;
-		}
-		else{
+		if(returnFound == FALSE){
 			panelIDCache=0;
-			renderState.returnDataMode = !renderState.returnDataMode;
+			renderState.returnDataMode = FALSE;
 		}
 	}
 	globalVals.currentPanelID = panelIDCache;
@@ -116,12 +114,20 @@ void UpdatePanelID(){
 void HandlePanelData(){
 	if(renderState.returnDataMode==FALSE){
 		if(globalVals.currentPanelID == thisPanel.address){
+			//IMMEDIATELY SWITCH OUR RX BUFFER POINTER SO WE CAN PRESERVE OUR DATA WITHOUT OVERWRITING
+			//WE NEED A BIT OF TIME BEFORE WE CAN FULLY PARSE IT BUT STILL NEED TO KEEP TABS ON OTHER DATA FLYING BY
+			globalVals.rxBufferLocation = !globalVals.rxBufferLocation;
+			if(globalVals.rxBufferLocation==0){
+				bufferSPI_RX = spiBufferRX;
+			}
+			else{
+				bufferSPI_RX = spiBufferRXAlt;
+			}
 			renderState.storedData=FALSE;
 			renderState.parsedData=FALSE;
 			renderState.waitingProcessing = TRUE;
-			renderState.rxBufferLocation = globalVals.bufferFlipFlopState;
-			//debugPrint("GOT DATA %d \n",renderState.rxBufferLocation);
 			renderState.framesReceived++;
+
 		}
 	}
 
@@ -131,9 +137,11 @@ void HandlePanelData(){
 		if(globalVals.currentPanelID == thisPanel.address){
 			//NO OTHER TESTS NEEDED. CANT GET HERE UNLESS UPDATE PANEL ID RESULTED IN POSITIVE CHECK
 			renderState.waitingToReturn = TRUE;
+			globalVals.currentPanelID++;
 		}
 		else{
 			DataReceive();
+			globalVals.currentPanelID++;
 		}
 	}
 	else{

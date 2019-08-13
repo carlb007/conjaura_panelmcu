@@ -7,18 +7,21 @@
 
 #include "led_data.h"
 uint16_t * renderOutput = bamBuffer1;
+uint8_t * streamOutput = (uint8_t *)bamBuffer1;
 
 uint8_t t = 0;
+uint16_t conversions = 0;
 
 void ConvertRawPixelData(){
+	conversions++;
 	uint16_t curLED = thisPanel.pixelCount;
 	uint16_t srcOffset = 0;
 	uint8_t *bufferPtr;
-	if(renderState.rxBufferLocation==0){
-		bufferPtr = spiBufferRX;
+	if(globalVals.rxBufferLocation==0){
+		bufferPtr = spiBufferRXAlt;
 	}
 	else{
-		bufferPtr = spiBufferRXAlt;
+		bufferPtr = spiBufferRX;
 	}
 
 	if(thisPanel.colourMode == PALETTE_COLOUR){
@@ -106,6 +109,15 @@ void BamifyData(){
 	BAM BIT 1 IS THE SHORTEST DURATION CYCLE.
 	*/
 
+	renderState.drawBufferLocation = !renderState.drawBufferLocation;
+	if(renderState.drawBufferLocation==0){
+		renderOutput = bamBuffer1;
+		streamOutput = (uint8_t *)bamBuffer2;
+	}
+	else{
+		renderOutput = bamBuffer2;
+		streamOutput = (uint8_t *)bamBuffer1;
+	}
 
 	//OPTIMISED
 	uint8_t bitSelect,col;
@@ -147,6 +159,7 @@ void BamifyData(){
 	renderState.parsedData = TRUE;
 	renderState.waitingProcessing = FALSE;
 	renderState.firstRender = FALSE;
+	renderState.drawBufferSwitchPending = TRUE;
 	//47362 CYCLES TO GET HERE IN TC MODE
 	if(renderState.bamTimerStarted==FALSE){
 		renderState.bamTimerStarted = TRUE;
@@ -157,16 +170,17 @@ void BamifyData(){
 		#endif
 		LEDDataTransmit();
 	}
-	else{
-		renderState.awaitingSwitch = TRUE;
-	}
 }
 
 
 void LEDDataTransmit(){
+	//ClearAndPauseTimer6();
+	TIM6->CR1 = 0;		//PAUSE TIMER
+	TIM6->CNT = 0;		//ZERO TIMER
+	TIM6->SR = 0;		//CLEAR THE UPDATE EVENT FLAG
 	uint16_t dataPos8Bit = renderState.rowOffset+renderState.bamOffset;
-	uint8_t *data = (uint8_t *)bamBuffer1;
-	TransmitSPI1DMA(data+dataPos8Bit,12);
+	//uint8_t *data = (uint8_t *)streamOutput;
+	TransmitSPI1DMA(streamOutput+dataPos8Bit,12);
 }
 
 
@@ -178,13 +192,22 @@ void FinaliseLEDData(){
 	uint8_t bamCache = renderState.currentBamBit;
 	renderState.currentBamBit++;
 	renderState.bamOffset += 12;
-	renderState.immediateJump = !renderState.immediateJump;
+	//renderState.immediateJump = !renderState.immediateJump;
 	if(renderState.currentBamBit == thisPanel.bamBits){
 		renderState.currentBamBit=0;
 		renderState.bamOffset = 0;
 		renderState.currentRow++;
 		if(renderState.currentRow == thisPanel.scanlines){
 			renderState.currentRow = 0;
+			if(renderState.drawBufferSwitchPending==TRUE){
+				if(renderState.drawBufferLocation==0){
+					streamOutput = (uint8_t *)bamBuffer1;
+				}
+				else{
+					streamOutput = (uint8_t *)bamBuffer2;
+				}
+				renderState.drawBufferSwitchPending= FALSE;
+			}
 			//renderState.waitingToReturn = TRUE;
 		}
 		renderState.rowOffset = renderState.currentRow*(12*thisPanel.bamBits);
@@ -202,7 +225,7 @@ void FinaliseLEDData(){
 		if(renderState.currentBamBit==1 && t==0){
 			uint16_t val = TIM7->CNT;
 			ClearAndPauseTimer7();
-			printf("ROW TIME: %d \n",val);
+			//printf("ROW TIME: %d \n",val);
 			t=1;
 		}
 	}
@@ -212,9 +235,11 @@ void FinaliseLEDData(){
 	//THIS REDUCES THE TIME (BAM TIME + SEND TIME) DOWN TO JUST BAM TIME.
 	//WE REPLICATE THIS FUNCTIONALITY ON BAMS 2,3 and 6. THIS LEAVES THE SPI/DMA TX LINE FREE FOR LONGER STINTS
 	//if(bamCache==0 || bamCache==2 || bamCache==4 || bamCache==6){	//USE CURRENTROW SO FIRST PASS DOESNT FIRE THIS
-	if(renderState.immediateJump>0){
-		LEDDataTransmit();
-	}
+
+	//if(renderState.immediateJump>0){
+	//	LEDDataTransmit();
+	//}
+
 	//ADC DATA COLLECTION IS DONE DURING BAM2 - WE HAVE APROX 840 CYCLES TO GET THIS DONE.
 	if(thisPanel.touchActive==TRUE && bamCache==2){
 		InitTouch_ADC();

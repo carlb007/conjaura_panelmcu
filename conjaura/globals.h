@@ -22,6 +22,7 @@
 #define MAXTOUCHCHANNELS 16
 
 #define OUTPUTBUFFERSIZE 768			//16*16 MAX SIZE = 256. DIV BY SCAN LINES (8 WORST CASE). * BY BAM BITS (8 WORST CASE). * 3 (RGB)
+										//X2 BUFFERS FOR FLIP FLOP
 
 #define MAX_PALETTE_SIZE 256			//MAX RESERVED MEMORY FOR PALETTE DATA. n * 3
 #define MAX_GAMMA_R_SIZE 256			//RESERVED MEMORY FOR GAMMA LOOKUP. EACH CHANNEL CAN BE SEPERATE LENGTHS DUE TO 5/6/5 HC
@@ -96,6 +97,7 @@ struct GlobalRunVals {
 	uint8_t rs485RXMode;					//CURRENT STATE OF RS485 CHIP
 	uint8_t dataToLEDs;						//DATA TO LEDS OR PI
 	uint8_t peripheralDataPoint;			//TALLY FOR ADC PERIPHERAL STREAM
+	uint8_t rxBufferLocation;				//0 = RX, 1 = RX ALT (FLIP FLOP RX BUFFERS).
 	uint8_t touchRunning;
 	uint8_t touchCalibrated;
 	uint8_t pauseOutput;
@@ -165,8 +167,7 @@ struct Panel {
 struct Rendering {
 	uint32_t framesReceived;		//SIMPLE TRACKING TALLY FOR DEBUG PURPOSES.
 
-	uint8_t renderFlipFlopState;	//SWITCH BETWEEN RENDER AND OUTPUT BUFFERS
-	uint8_t awaitingSwitch;			//IS A RENDER REQUEST PENDING
+	uint8_t renderFlipFlopState;				//SWITCH BETWEEN RENDER AND OUTPUT BUFFERS
 	volatile uint8_t storedData;				//HAVE WE STORED OUR RECEIVED DATA WHEN WE WERE THE TARGET
 	volatile uint8_t parsedData;				//HAVE WE PREPPED AND PARSED OUR DATA INTO BAM FORMAT
 	volatile uint8_t returnDataMode;			//1 MEANS WERE RECEIVING RETURN DATA NOT LED DATA (OR NEED TO SEND OUR RETURN DATA)
@@ -174,7 +175,9 @@ struct Rendering {
 	volatile uint8_t waitingProcessing;			//1 MEANS WE NEED TO PROCESS SOMETHING
 
 	uint8_t returnSent;							//1 MEANS WEVE SENT - USED IN TRACKING DMA RESPONSE
-	uint8_t rxBufferLocation;					//0 = RX, 1 = RX ALT (FLIP FLOP RX BUFFERS)
+
+	uint8_t drawBufferLocation;					//FLIP FLOP BETWEEN RENDERING BUFFERS AND CURRENT LIVE DRAW BUFFER
+	uint8_t drawBufferSwitchPending;			//AFTER FLIP FLOP WE SET A FLAG TO SWITCH OUT BUFFERS @ ROW 0 BAM 0 TO START NEW FRAME.
 
 	uint8_t bamTimerStarted;		//HAVE WE STARED OUR RENDER/BAM TIMER?
 	uint8_t currentBamBit;			//TRACK OUR CURRENT BAM STEP
