@@ -11,6 +11,7 @@ uint8_t * streamOutput = (uint8_t *)bamBuffer1;
 
 uint8_t t = 0;
 uint16_t conversions = 0;
+uint16_t rowTime = 0;
 
 void ConvertRawPixelData(){
 	conversions++;
@@ -135,6 +136,12 @@ void BamifyData(){
 		for(uint8_t bamBit=0;bamBit<thisPanel.bamBits;bamBit++){
 			bitSelect = 1 << bamBit;
 			dataOffset = dataOffsetRowStart;
+			*(renderOutput+dataOffset) = 0;
+			*(renderOutput+dataOffset+1) = 0;
+			*(renderOutput+dataOffset+2) = 0;
+			*(renderOutput+dataOffset+3) = 0;
+			*(renderOutput+dataOffset+4) = 0;
+			*(renderOutput+dataOffset+5) = 0;
 			col = thisPanel.width;
 			do{
 				col--;
@@ -176,23 +183,27 @@ void BamifyData(){
 void LEDDataTransmit(){
 	//ClearAndPauseTimer6();
 	TIM6->CR1 = 0;		//PAUSE TIMER
-	TIM6->CNT = 0;		//ZERO TIMER
+	//TIM6->CNT = 0;		//ZERO TIMER
 	TIM6->SR = 0;		//CLEAR THE UPDATE EVENT FLAG
 	uint16_t dataPos8Bit = renderState.rowOffset+renderState.bamOffset;
 	//uint8_t *data = (uint8_t *)streamOutput;
 	TransmitSPI1DMA(streamOutput+dataPos8Bit,12);
+
+	//WE CAN DO A FEW OTHER LITTLE BITS AHEAD OF TIME
+	GPIOA->BSRR |= LED_LATCH_Pin;			//SET LATCH PIN HIGH READY TO LATCH
+	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;		//DISABLE ALL OUTPUTS OF LED DRIVER. PLACE HERE FOR DIMMER LEVELS.
+	renderState.bamOffset += 12;
 }
 
 
 void FinaliseLEDData(){
 	//DO THIS WHILST WAITING FOR THE SPI TO CLOCK IN...DMA WILL ALWAYS END BEFORE SPI HAS FINISHED SPITTING OUT ITS BITS
-	GPIOA->BSRR |= LED_LATCH_Pin;		//SET LATCH PIN HIGH READY TO LATCH
-	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;	//DISABLE ALL OUTPUTS OF LED DRIVER
+
+	//GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;			//DISABLE ALL OUTPUTS OF LED DRIVER - MOVED TO ALLOW DIMMER LEVELS.
+
 	SelectRow(renderState.currentRow);				//CHANGE ROW. NOTE WE DONT BOTHER SHUTTING OFF THE MULTIPLEXER AS THE LED DRIVER IS OFF ANYWAY.
-	uint8_t bamCache = renderState.currentBamBit;
-	renderState.currentBamBit++;
-	renderState.bamOffset += 12;
-	//renderState.immediateJump = !renderState.immediateJump;
+	uint8_t bamCache = renderState.currentBamBit++;
+
 	if(renderState.currentBamBit == thisPanel.bamBits){
 		renderState.currentBamBit=0;
 		renderState.bamOffset = 0;
@@ -208,7 +219,6 @@ void FinaliseLEDData(){
 				}
 				renderState.drawBufferSwitchPending= FALSE;
 			}
-			//renderState.waitingToReturn = TRUE;
 		}
 		renderState.rowOffset = renderState.currentRow*(12*thisPanel.bamBits);
 	}
@@ -223,7 +233,7 @@ void FinaliseLEDData(){
 	#if DEBUGMODE
 	if(renderState.currentRow == 1){
 		if(renderState.currentBamBit==1 && t==0){
-			uint16_t val = TIM7->CNT;
+			rowTime = TIM7->CNT;
 			ClearAndPauseTimer7();
 			//printf("ROW TIME: %d \n",val);
 			t=1;
@@ -240,8 +250,14 @@ void FinaliseLEDData(){
 	//	LEDDataTransmit();
 	//}
 
-	//ADC DATA COLLECTION IS DONE DURING BAM2 - WE HAVE APROX 840 CYCLES TO GET THIS DONE.
-	if(thisPanel.touchActive==TRUE && bamCache==2){
+	//ADC DATA COLLECTION IS DONE DURING BAM4 - WE HAVE APROX 840 CYCLES TO GET THIS DONE.
+	if(thisPanel.touchActive==TRUE && bamCache==4){
 		InitTouch_ADC();
+	}
+	if(renderState.waitingToReturn==TRUE && bamCache==5){
+		for(uint8_t i=0;i<255;i++){
+			asm("nop");
+		}
+		SendReturnData();
 	}
 }

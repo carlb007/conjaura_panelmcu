@@ -7,7 +7,7 @@
 
 #include "timers.h"
 
-uint16_t timeDelays[8] = {70,120,240,480,960,1920,3840,7680};
+uint16_t timeDelays[8] = {65,120,240,480,960,1920,3840,7680};
 uint8_t timersEnabled = FALSE;
 
 void InitTimers(){
@@ -32,33 +32,21 @@ void InitTimers(){
 
 	HAL_NVIC_SetPriority(TIM6_IRQn, 1, 0);
 	HAL_NVIC_EnableIRQ(TIM6_IRQn);
-	//NVIC_EnableIRQ(TIM6_IRQn);
 	timersEnabled = TRUE;
 }
 
 void SetAndStartTimer6(uint16_t duration){
 	TIM6->ARR = duration;
-	TIM6->CNT = 0;										//ZERO TIMER
-	TIM6->CR1 = 1;										//START TIMER
+	TIM6->CNT = 0;				//ZERO TIMER
+	TIM6->CR1 = 1;				//START TIMER
 }
 
 void ClearAndPauseTimer6(){
-	TIM6->CR1 = 0;										//PAUSE TIMER
-	TIM6->CNT = 0;													//ZERO TIMER
-	TIM6->SR = 0;													//CLEAR THE UPDATE EVENT FLAG
+	TIM6->CR1 = 0;				//PAUSE TIMER
+	TIM6->CNT = 0;				//ZERO TIMER
+	TIM6->SR = 0;				//CLEAR THE UPDATE EVENT FLAG
 }
 
-void TIM6_IRQHandler(){
-	//REDEFINED TO LEDDataTransmit DIRECTLY IN STARTUP
-
-	//ClearAndPauseTimer6();
-	//if(renderState.immediateJump==0){
-	//LEDDataTransmit();
-	//}
-	//else{
-	//	FinaliseLEDData();
-	//}
-}
 
 void TIM7_IRQHandler(){
 	ClearAndPauseTimer7();
@@ -66,12 +54,12 @@ void TIM7_IRQHandler(){
 
 void SetAndStartTimer7(uint16_t duration){
 	TIM7->ARR = duration;
-	TIM7->CNT = 0;													//ZERO TIMER
-	TIM7->CR1 |= TIM_CR1_CEN;										//START TIMER
+	TIM7->CNT = 0;				//ZERO TIMER
+	TIM7->CR1 |= TIM_CR1_CEN;	//START TIMER
 }
 
 void ClearAndPauseTimer7(){
-	TIM7->CR1 &= ~TIM_CR1_CEN;										//PAUSE TIMER
-	TIM7->CNT = 0;													//ZERO TIMER
-	TIM7->SR = 0;													//CLEAR THE UPDATE EVENT FLAG
+	TIM7->CR1 &= ~TIM_CR1_CEN;	//PAUSE TIMER
+	TIM7->CNT = 0;				//ZERO TIMER
+	TIM7->SR = 0;				//CLEAR THE UPDATE EVENT FLAG
 }

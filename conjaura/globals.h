@@ -166,6 +166,8 @@ struct Panel {
 
 struct Rendering {
 	uint32_t framesReceived;		//SIMPLE TRACKING TALLY FOR DEBUG PURPOSES.
+	uint32_t returnedFrames;		//TRACKING FOR RETURNED FRAMES. DEBUG PURPOSES.
+	uint32_t framesSeen;			//TRACKING DEBUG
 
 	uint8_t renderFlipFlopState;				//SWITCH BETWEEN RENDER AND OUTPUT BUFFERS
 	volatile uint8_t storedData;				//HAVE WE STORED OUR RECEIVED DATA WHEN WE WERE THE TARGET
@@ -175,6 +177,7 @@ struct Rendering {
 	volatile uint8_t waitingProcessing;			//1 MEANS WE NEED TO PROCESS SOMETHING
 
 	uint8_t returnSent;							//1 MEANS WEVE SENT - USED IN TRACKING DMA RESPONSE
+	uint8_t pendingNext;
 
 	uint8_t drawBufferLocation;					//FLIP FLOP BETWEEN RENDERING BUFFERS AND CURRENT LIVE DRAW BUFFER
 	uint8_t drawBufferSwitchPending;			//AFTER FLIP FLOP WE SET A FLAG TO SWITCH OUT BUFFERS @ ROW 0 BAM 0 TO START NEW FRAME.

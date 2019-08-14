@@ -19,7 +19,7 @@ void DMAInit(){
 	HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Channel2_3_IRQn);
 	  /* DMA1_Ch4_7_DMAMUX1_OVR_IRQn interrupt configuration */
-	HAL_NVIC_SetPriority(DMA1_Ch4_7_DMAMUX1_OVR_IRQn, 2, 0);
+	HAL_NVIC_SetPriority(DMA1_Ch4_7_DMAMUX1_OVR_IRQn, 3, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Ch4_7_DMAMUX1_OVR_IRQn);
 
 	DMA1_1_Init();

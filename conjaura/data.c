@@ -79,41 +79,13 @@ void DataReceive(){
 }
 
 
-void UpdatePanelID(){
-	uint8_t panelIDCache = globalVals.currentPanelID;
-	if(renderState.returnDataMode==FALSE){
-		panelIDCache++;
-		if(panelIDCache==globalVals.totalPanels){
-			panelIDCache=0;
-			renderState.returnDataMode = TRUE;
-		}
-	}
-	//CAN BECOME ACTIVE STRAIGHT AWAY
-	if(renderState.returnDataMode==TRUE){
-		uint16_t returnSize = 0;
-		uint8_t returnFound = FALSE;
-		while(returnFound==FALSE && panelIDCache<globalVals.totalPanels){
-			returnSize = panelInfoLookup[panelIDCache].touchByteSize + panelInfoLookup[panelIDCache].periperalByteSize;
-			if(returnSize>0){
-				globalVals.currentPanelReturnSize = returnSize;
-				returnFound = TRUE;
-			}
-			else{
-				panelIDCache++;
-			}
-		}
-		if(returnFound == FALSE){
-			panelIDCache=0;
-			renderState.returnDataMode = FALSE;
-		}
-	}
-	globalVals.currentPanelID = panelIDCache;
-}
-
-
 void HandlePanelData(){
+	uint8_t panelIDCache = globalVals.currentPanelID;
+	uint8_t totPanels = globalVals.totalPanels;
+	renderState.framesSeen++;
+
 	if(renderState.returnDataMode==FALSE){
-		if(globalVals.currentPanelID == thisPanel.address){
+		if(panelIDCache == thisPanel.address){
 			//IMMEDIATELY SWITCH OUR RX BUFFER POINTER SO WE CAN PRESERVE OUR DATA WITHOUT OVERWRITING
 			//WE NEED A BIT OF TIME BEFORE WE CAN FULLY PARSE IT BUT STILL NEED TO KEEP TABS ON OTHER DATA FLYING BY
 			globalVals.rxBufferLocation = !globalVals.rxBufferLocation;
@@ -127,24 +99,42 @@ void HandlePanelData(){
 			renderState.parsedData=FALSE;
 			renderState.waitingProcessing = TRUE;
 			renderState.framesReceived++;
-
+		}
+		if((panelIDCache+1)==totPanels){
+			panelIDCache=0;
+			renderState.returnDataMode = TRUE;
 		}
 	}
-
-	UpdatePanelID();
-
+	//CAN BECOME ACTIVE STRAIGHT AWAY
 	if(renderState.returnDataMode==TRUE){
-		if(globalVals.currentPanelID == thisPanel.address){
-			//NO OTHER TESTS NEEDED. CANT GET HERE UNLESS UPDATE PANEL ID RESULTED IN POSITIVE CHECK
-			renderState.waitingToReturn = TRUE;
-			globalVals.currentPanelID++;
+		uint8_t panelIDCache2 = panelIDCache;
+		uint16_t returnSize = 0;
+
+		while(returnSize==0 && panelIDCache2<totPanels){
+			panelIDCache = panelIDCache2;
+			returnSize = panelInfoLookup[panelIDCache2].touchByteSize + panelInfoLookup[panelIDCache2].periperalByteSize;
+			panelIDCache2++;
+		}
+
+		if(returnSize>0){
+			globalVals.currentPanelReturnSize = returnSize;
+			if(panelIDCache == thisPanel.address){
+				globalVals.currentPanelID = panelIDCache+1;	//FWD 1 READY FOR AFTER IRQ CALLBACK.
+				renderState.waitingToReturn = TRUE;
+			}
+			else{
+				DataReceive();
+				globalVals.currentPanelID = panelIDCache+1;
+			}
 		}
 		else{
+			globalVals.currentPanelID = 0;
+			renderState.returnDataMode = FALSE;
 			DataReceive();
-			globalVals.currentPanelID++;
 		}
 	}
 	else{
+		globalVals.currentPanelID++;
 		DataReceive();
 	}
 }
@@ -152,8 +142,9 @@ void HandlePanelData(){
 
 void SendReturnData(){
 	globalVals.dataState = SENDING_DATA_STREAM;
-	TIM6->CR1 &= ~1;	//PAUSE LED TIMER
 	renderState.waitingToReturn = FALSE;
+	renderState.returnedFrames++;
+	TIM6->CR1 &= ~1;	//PAUSE LED TIMER
 	DataToEXT();
 	EnableRS485TX();
 	TransmitSPI1DMA(bufferSPI_TX, thisPanel.touchChannels);
@@ -164,9 +155,10 @@ void FinishDataSend(){
 	while((SPI1->SR & SPI_SR_BSY));
 	EnableRS485RX();
 	DataToLEDs();
-	UpdatePanelID();
-	DataReceive();
 	TIM6->CR1 |= 1;	//RESUME LED TIMER
+	HandlePanelData();
+	//DataReceive();
+
 }
 
 void SelectRow(uint8_t row){
