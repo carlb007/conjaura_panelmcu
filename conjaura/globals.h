@@ -11,7 +11,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-#define DEBUGMODE 0						//ENABLE PRINTF OUTPUTS
+#define DEBUGMODE 1						//ENABLE PRINTF OUTPUTS
 #define DISABLEWATCHDOG 0					//FORCE REFRESH OF WATCHDOG
 #define TRUE 1
 #define FALSE 0
@@ -175,7 +175,8 @@ struct Rendering {
 	volatile uint8_t returnDataMode;			//1 MEANS WERE RECEIVING RETURN DATA NOT LED DATA (OR NEED TO SEND OUR RETURN DATA)
 	volatile uint8_t waitingToReturn;			//1 MEANS WE NEED TO SEND BACK OUR TOUCH DATA ASAP
 	volatile uint8_t waitingProcessing;			//1 MEANS WE NEED TO PROCESS SOMETHING
-
+	uint8_t requireEdgeUpdate;
+	uint8_t edgeComplete;
 	uint8_t returnSent;							//1 MEANS WEVE SENT - USED IN TRACKING DMA RESPONSE
 	uint8_t pendingNext;
 

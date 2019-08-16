@@ -6,6 +6,8 @@
  */
 
 #include "led_data.h"
+
+extern UART_HandleTypeDef huart3;
 uint16_t * renderOutput = bamBuffer1;
 uint8_t * streamOutput = (uint8_t *)bamBuffer1;
 
@@ -210,6 +212,7 @@ void FinaliseLEDData(){
 		renderState.currentRow++;
 		if(renderState.currentRow == thisPanel.scanlines){
 			renderState.currentRow = 0;
+			renderState.requireEdgeUpdate = TRUE;
 			if(renderState.drawBufferSwitchPending==TRUE){
 				if(renderState.drawBufferLocation==0){
 					streamOutput = (uint8_t *)bamBuffer1;
@@ -255,9 +258,90 @@ void FinaliseLEDData(){
 		InitTouch_ADC();
 	}
 	if(renderState.waitingToReturn==TRUE && bamCache==5){
-		for(uint8_t i=0;i<255;i++){
-			asm("nop");
-		}
 		SendReturnData();
 	}
+	if(renderState.requireEdgeUpdate==TRUE && bamCache==6){
+		if(renderState.edgeComplete == TRUE){
+			renderState.requireEdgeUpdate = FALSE;
+			renderState.edgeComplete = FALSE;
+			TXEdgeLights();
+		}
+	}
+}
+
+void EnableEdgeLights(){
+	GPIOA->BSRR |= EDGE_EN_Pin;
+}
+
+
+void DisableEdgeLights(){
+	GPIOA->BRR |= EDGE_EN_Pin;
+}
+
+//GRB ORDER
+uint8_t data[72] = {1,0,0,0,32,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1};
+//uint8_t data[72] = {210,0,0,0,255,0,0,0,255,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128};
+
+//uint8_t data[72] = {255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255};
+//uint8_t edgeCompiled[576];
+uint8_t gg =0;
+void TXEdgeLights(){
+
+	uint8_t data2[72] = {1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1};
+	data2[gg] = 64;
+	gg++;
+	if(gg>71){
+		gg=0;
+	}
+	uint32_t offset = 0;
+	uint8_t result;
+	for(uint8_t led=0;led<72;led++){
+		uint8_t bits=8;
+		do{
+			bits--;
+			result = (data2[led] & (1<<bits));	//IS A 1 - WRITE OUT 3 BITS FOR 1 (110) BUT INVERTED
+
+			if(result){
+				edgeCompiled[offset] = 14;
+			}
+			else{
+				edgeCompiled[offset] = 15;
+			}
+			bits--;
+			result = (data2[led] & (1<<bits));	//IS A 1 - WRITE OUT 3 BITS FOR 1 (110) BUT INVERTED
+			if(result){
+				edgeCompiled[offset] |= 192;
+			}
+			else{
+				edgeCompiled[offset] |= 224;
+			}
+
+			offset++;
+			//bits--;
+		}while(bits>0);
+	}
+
+
+	//USART3->CR3 |= 2684354560;
+	//USART3->CR3 |= 8388608;
+	DMA1_Channel7->CNDTR = offset;						//DATA LENGTH OF TRANSFER
+	DMA1_Channel7->CPAR = (uint32_t)&USART3->TDR;		//PERIPHERAL ADDRESS TARGET (SPI DATA REGISTER) - SET ON INIT
+	DMA1_Channel7->CMAR = (uint32_t)edgeCompiled;		//ADDRESS OF SRC DATA
+
+
+	DMA1_Channel7->CCR |= 3;									//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
+
+
+
+	//HAL_HalfDuplex_EnableTransmitter(&huart3);
+	//uint8_t t = HAL_UART_Transmit(&huart3, edgeCompiled, 3, 1000);
+	//printf("Dat %d \n",edgeCompiled[0]);
+
+//printf("send %d\n",t);
+	//TXEdgeLights();
+}
+
+
+void UART_DMATransmitCplt(UART_HandleTypeDef *huart){
+	printf("uart called\n");
 }

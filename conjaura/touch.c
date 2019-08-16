@@ -55,9 +55,7 @@ void DeInitTouch_ADC(){
 
 
 ADCConversionComplete(){
-	DMA1_Channel4->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
-	DMA1->IFCR |= (4096|8192);	//CLEAR ALL CHANNEL 1 INTERUPT
-	DMA1_Channel4->CCR &= ~1;	//DISABLE DMA
+
 
 	if(!globalVals.touchCalibrated){
 		thisPanel.touchChannel[currentTouchPoint].baseReading += *(ADCRead);
@@ -67,7 +65,8 @@ ADCConversionComplete(){
 				thisPanel.touchChannel[ch].baseReading /= CALIBRATIONSAMPLES;
 			}
 			globalVals.touchCalibrated = TRUE;
-			//printf("ADC CALIB: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[1].baseReading, thisPanel.touchChannel[5].baseReading, thisPanel.touchChannel[11].baseReading, thisPanel.touchChannel[15].baseReading);
+			printf("ADC CALIB: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[1].baseReading, thisPanel.touchChannel[5].baseReading, thisPanel.touchChannel[11].baseReading, thisPanel.touchChannel[15].baseReading);
+			//TXEdgeLights();
 		}
 	}
 	else{
@@ -96,12 +95,6 @@ ADCConversionComplete(){
 		}
 	}
 	currentTouchPoint++;
-	if(!globalVals.touchCalibrated || (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE)){
-		DisableRowEn();
-		SelectRow(currentTouchPoint);
-		EnableRowEn();
-		InitTouch_ADC();
-	}
 	if(currentTouchPoint==MAXTOUCHCHANNELS/2){
 		currentTouchPoint = 0;
 		if(!globalVals.touchCalibrated){
@@ -109,4 +102,11 @@ ADCConversionComplete(){
 		}
 	}
 	globalVals.touchRunning = FALSE;
+	if(!globalVals.touchCalibrated || (globalVals.headerMode == ADDRESS_MODE && thisPanel.addressSet==FALSE)){
+		DisableRowEn();
+		SelectRow(currentTouchPoint);
+		EnableRowEn();
+		InitTouch_ADC();
+	}
+
 }

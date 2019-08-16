@@ -400,6 +400,14 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
   {
   /* USER CODE BEGIN USART3_MspInit 0 */
 
+	  GPIO_InitTypeDef GPIO_InitStruct = {0};
+	  GPIO_InitStruct.Pin = EDGE_DATA_Pin;
+	      GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+	      GPIO_InitStruct.Pull = GPIO_NOPULL;
+	      GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+	      GPIO_InitStruct.Alternate = GPIO_AF4_USART3;
+	      HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /* USER CODE END USART3_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_USART3_CLK_ENABLE();

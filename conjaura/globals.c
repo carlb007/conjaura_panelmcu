@@ -34,6 +34,7 @@ void EnsureDefaults(){
 
 	renderState.firstRender = TRUE;		//MARK AS FIRST RENDER
 	renderState.drawBufferSwitchPending = FALSE;	//NO SWITCH NEEDED
+	renderState.edgeComplete = TRUE;
 	globalVals.currentPanelID=0;
 	renderState.returnDataMode=FALSE;
 }

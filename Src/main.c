@@ -125,7 +125,19 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  EnableEdgeLights();
   Initialise();
+  DisableEdgeLights();
+
+  USART3->CR1 &= ~1;
+USART3->CR3 &= ~USART_CR3_DMAT;
+	USART3->CR1 |= USART_CR1_TCIE;
+	USART3->CR1 |= USART_CR1_FIFOEN;
+	USART3->CR3 |= USART_CR3_HDSEL;
+	USART3->ISR |= UART_CLEAR_TCF;
+	USART3->CR3 |= USART_CR3_DMAT;
+	USART3->CR1 |= 1;
+
 
 
   //LoadAddress();
@@ -427,16 +439,20 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
-  huart3.Init.WordLength = UART_WORDLENGTH_7B;
+  huart3.Init.BaudRate = 3300000;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
   huart3.Init.Mode = UART_MODE_TX;
   huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_8;
   huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart3.Init.ClockPrescaler = UART_PRESCALER_DIV1;
-  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_TXINVERT_INIT|UART_ADVFEATURE_RXOVERRUNDISABLE_INIT
+                              |UART_ADVFEATURE_DMADISABLEONERROR_INIT;
+  huart3.AdvancedInit.TxPinLevelInvert = UART_ADVFEATURE_TXINV_ENABLE;
+  huart3.AdvancedInit.OverrunDisable = UART_ADVFEATURE_OVERRUN_DISABLE;
+  huart3.AdvancedInit.DMADisableonRxError = UART_ADVFEATURE_DMA_DISABLEONRXERROR;
   if (HAL_HalfDuplex_Init(&huart3) != HAL_OK)
   {
     Error_Handler();

@@ -7,6 +7,8 @@
 
 #include "dma.h"
 
+extern DMA_HandleTypeDef hdma_usart3_tx;
+extern UART_HandleTypeDef huart3;
 
 void DMAInit(){
 	__HAL_RCC_DMA1_CLK_ENABLE();
@@ -25,6 +27,7 @@ void DMAInit(){
 	DMA1_1_Init();
 	DMA1_23_Init();
 	DMA1_4_Init();
+	DMA1_7_Init();
 }
 
 void DMA1_1_Init(){
@@ -74,6 +77,21 @@ void DMA1_4_Init(){
 	DMAMUX1_Channel3->CCR = 5;			//SET MUX CHANNEL TO ADC.
 }
 
+void DMA1_7_Init(){
+	//CHANNEL 7 IS USED FOR EDGE DATA TX ONLY
+	DMA1_Channel7->CCR = 0;				//CLEAR ALL BITS
+	DMAMUX1_ChannelStatus->CFR |= 64;	//CLEAR CHANNEL 4 OVERRUN FLAG
+	DMA1->IFCR |= (16777216|33554432);	//CLEAR CHANNEL 1 INTERUPTS
+	DMA1_Channel7->CNDTR = 0;			//SET DATA LEN TO ZERO
+
+	DMA1_Channel7->CCR |= 2;			//SET BIT 2 TO 1. TRANSFER COMPLETE INTERUPT ENABLED
+	DMA1_Channel7->CCR |= 16;			//SET BIT 4 TO 0. DIRECTION - PERIPH TO MEM;
+	DMA1_Channel7->CCR |= 128;			//SET BIT 8 TO 1. MEM INCREMENT MODE.
+	DMA1_Channel7->CCR |= 4096;			//SET 13th > 12th BITS TO 0,1. MED PRIORITY MODE (LEV 2/4)
+
+	DMAMUX1_Channel6->CCR = 55;			//SET MUX CHANNEL TO USART3 TX.
+}
+
 void DMA1_1_IRQ(){
 	DMA1_Channel1->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
 	DMA1->IFCR |= (1|2);		//CLEAR ALL CHANNEL 1 INTERUPT
@@ -118,6 +136,22 @@ void DMA1_23_IRQ(){
 		else if(globalVals.dataState == AWAITING_CONF_DATA){
 			HandleConfigData();
 		}
+	}
+}
+
+void DMA1_47_IRQ(){
+
+	if(globalVals.touchRunning == TRUE){
+		DMA1_Channel4->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+		DMA1->IFCR |= (4096|8192);	//CLEAR ALL CHANNEL 1 INTERUPT
+		DMA1_Channel4->CCR &= ~1;	//DISABLE DMA
+		ADCConversionComplete();
+	}
+	else{
+		renderState.edgeComplete = TRUE;
+		DMA1_Channel7->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+		DMA1->IFCR |= (16777216|33554432);	//CLEAR ALL CHANNEL 1 INTERUPT
+		DMA1_Channel7->CCR &= ~1;	//DISABLE DMA
 	}
 }
 
