@@ -7,21 +7,19 @@
 
 #include "panel_config.h"
 
-extern SPI_HandleTypeDef hspi2;
 
 void ConfigHeader(){
 	globalVals.configSubMode = (*bufferSPI_RX>>4) & 0x3;
+	WatchdogRefresh();
 	if(globalVals.configSubMode == PANEL_INF){
 		globalVals.totalPanels  = *(bufferSPI_RX+1);
 		globalVals.dataState = AWAITING_CONF_DATA;
 		ReceiveSPI2DMA(globalVals.totalPanels*4);
-		//HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, globalVals.totalPanels*4);
 	}
 	else if(globalVals.configSubMode == GAMMA){
 		globalVals.dataState = AWAITING_GAMMA_DATA;
 		GammaSetup();
 		ReceiveSPI2DMA(thisPanel.gammaSize);
-		//HAL_SPI_Receive_DMA(&hspi2, bufferSPI_RX, thisPanel.gammaSize);
 	}
 }
 

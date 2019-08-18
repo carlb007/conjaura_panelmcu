@@ -50,6 +50,12 @@ void EnableRowEn(){
 
 void ParseHeader(){
 	globalVals.headerMode = *bufferSPI_RX>>6;
+	if(globalVals.watchdogRunning==FALSE){
+		InitWatchdog();
+	}
+	else{
+		WatchdogRefresh();
+	}
 	if (globalVals.headerMode == DATA_MODE){
 		globalVals.currentPanelID = 0;
 		globalVals.dataState = PANEL_DATA_STREAM;
@@ -74,6 +80,7 @@ void DataReceive(){
 		ReceiveSPI2DMA(panelInfoLookup[globalVals.currentPanelID].edgeByteSize + panelInfoLookup[globalVals.currentPanelID].ledByteSize);
 	}
 	else{
+		printf("rec2\n");
 		ReceiveSPI2DMA(globalVals.currentPanelReturnSize);
 	}
 }
@@ -83,7 +90,7 @@ void HandlePanelData(){
 	uint8_t panelIDCache = globalVals.currentPanelID;
 	uint8_t totPanels = globalVals.totalPanels;
 	renderState.framesSeen++;
-
+	WatchdogRefresh();
 	if(renderState.returnDataMode==FALSE){
 		if(panelIDCache == thisPanel.address){
 			//IMMEDIATELY SWITCH OUR RX BUFFER POINTER SO WE CAN PRESERVE OUR DATA WITHOUT OVERWRITING
@@ -109,13 +116,12 @@ void HandlePanelData(){
 	if(renderState.returnDataMode==TRUE){
 		uint8_t panelIDCache2 = panelIDCache;
 		uint16_t returnSize = 0;
-
 		while(returnSize==0 && panelIDCache2<totPanels){
 			panelIDCache = panelIDCache2;
 			returnSize = panelInfoLookup[panelIDCache2].touchByteSize + panelInfoLookup[panelIDCache2].periperalByteSize;
 			panelIDCache2++;
 		}
-
+		WatchdogRefresh();
 		if(returnSize>0){
 			globalVals.currentPanelReturnSize = returnSize;
 			if(panelIDCache == thisPanel.address){

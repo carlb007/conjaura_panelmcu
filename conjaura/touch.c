@@ -65,7 +65,7 @@ ADCConversionComplete(){
 				thisPanel.touchChannel[ch].baseReading /= CALIBRATIONSAMPLES;
 			}
 			globalVals.touchCalibrated = TRUE;
-			printf("ADC CALIB: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[1].baseReading, thisPanel.touchChannel[5].baseReading, thisPanel.touchChannel[11].baseReading, thisPanel.touchChannel[15].baseReading);
+			//printf("ADC CALIB: BL %d, BR %d, TL %d, TR %d \n",thisPanel.touchChannel[1].baseReading, thisPanel.touchChannel[5].baseReading, thisPanel.touchChannel[11].baseReading, thisPanel.touchChannel[15].baseReading);
 			//TXEdgeLights();
 		}
 	}

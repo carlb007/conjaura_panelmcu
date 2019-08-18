@@ -25,6 +25,7 @@ void debugPrint(char *data, uint16_t *params){
 
 //DEFAULT VALS:
 void EnsureDefaults(){
+	globalVals.watchdogRunning = FALSE;
 	thisPanel.addressSet = FALSE;
 	thisPanel.gammaSize = 0;
 	globalVals.touchRunning = FALSE;
@@ -40,6 +41,7 @@ void EnsureDefaults(){
 }
 
 void Initialise(){
+	DisableEdgeLights();
 	EnsureDefaults();
 	InitTimers();
 	InitSPI();
@@ -49,5 +51,26 @@ void Initialise(){
 	HeaderMode(TRUE);
 	LoadAddress();
 	InitTouch_ADC();
+	EnableEdgeLights();
 	debugPrint("Ready\n","");
+}
+
+void InitWatchdog(){
+	//ENABLE WATCHDOG
+	IWDG->KR = IWDG_KEY_ENABLE;
+	//PROVIDE WRITE ACCESS
+	IWDG->KR = IWDG_KEY_WRITE_ACCESS_ENABLE;
+	//PRESCALER SET. 32KHZ CLK. 0 = PSC /4, 1 = PSC /8;
+	IWDG->PR = 1;
+	//RELOAD VALUE;
+	IWDG->RLR = 800;	//PSC 4 AND 800 = 0.1 seconds watchdog reset.
+	//WAIT TIL READY
+	while (IWDG->SR != 0x00u);
+	//WatchdogRefresh();
+	globalVals.watchdogRunning = TRUE;
+}
+
+void WatchdogRefresh(){
+	//REFRESH COUNTER VALUE
+	IWDG->KR = IWDG_KEY_RELOAD;
 }

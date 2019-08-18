@@ -26,6 +26,8 @@
 #include "globals.h"
 #include "timers.h"
 #include "dma.h"
+#include "spi.h"
+#include "usart.h"
 #include "addresses.h"
 #include "colour.h"
 #include "data.h"
@@ -54,6 +56,8 @@ DMA_HandleTypeDef hdma_adc1;
 
 I2C_HandleTypeDef hi2c1;
 
+IWDG_HandleTypeDef hiwdg;
+
 SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 DMA_HandleTypeDef hdma_spi1_tx;
@@ -75,6 +79,7 @@ static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 #if DEBUGMODE
 extern void initialise_monitor_handles(void);
@@ -117,26 +122,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  //MX_DMA_Init();
   MX_I2C1_Init();
-  //MX_SPI1_Init();
-  //MX_SPI2_Init();
   MX_ADC1_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-
-  EnableEdgeLights();
   Initialise();
-  DisableEdgeLights();
 
-  USART3->CR1 &= ~1;
-USART3->CR3 &= ~USART_CR3_DMAT;
-	USART3->CR1 |= USART_CR1_TCIE;
-	USART3->CR1 |= USART_CR1_FIFOEN;
-	USART3->CR3 |= USART_CR3_HDSEL;
-	USART3->ISR |= UART_CLEAR_TCF;
-	USART3->CR3 |= USART_CR3_DMAT;
-	USART3->CR1 |= 1;
+
+
 
 
 
@@ -168,6 +161,9 @@ USART3->CR3 &= ~USART_CR3_DMAT;
 			  }
 		  }
 	  }
+	  else if(globalVals.dataState == AWAITING_ADDRESS_CALLS){
+		  WatchdogRefresh();
+	  }
 
     /* USER CODE END WHILE */
 
@@ -191,10 +187,11 @@ void SystemClock_Config(void)
   HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
   /** Initializes the CPU, AHB and APB busses clocks 
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSIDiv = RCC_HSI_DIV1;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
@@ -345,6 +342,35 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_4;
+  hiwdg.Init.Window = 0;
+  hiwdg.Init.Reload = 4095;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
+
+}
+
+/**
   * @brief SPI1 Initialization Function
   * @param None
   * @retval None
@@ -439,7 +465,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 3300000;
+  huart3.Init.BaudRate = 3500000;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
@@ -458,7 +484,7 @@ static void MX_USART3_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN USART3_Init 2 */
-
+  InitUSART();
   /* USER CODE END USART3_Init 2 */
 
 }
@@ -500,21 +526,26 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, ROW_SEL_EN_GLK_Pin|SEL_MEM_LED_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(ROW_SEL_EN_GLK_GPIO_Port, ROW_SEL_EN_GLK_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, EDGE_EN_Pin|SEL_READ_WRITE_Pin|ROW_SEL1_Pin|ROW_SEL3_Pin 
-                          |ROW_SEL_EN_Pin|LED_LATCH_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, EDGE_EN_Pin|ROW_SEL_EN_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, SEL_READ_WRITE_Pin|ROW_SEL1_Pin|ROW_SEL3_Pin|LED_LATCH_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(ROW_SEL2_GPIO_Port, ROW_SEL2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : ROW_SEL_EN_GLK_Pin SEL_MEM_LED_Pin */
-  GPIO_InitStruct.Pin = ROW_SEL_EN_GLK_Pin|SEL_MEM_LED_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SEL_MEM_LED_GPIO_Port, SEL_MEM_LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : ROW_SEL_EN_GLK_Pin */
+  GPIO_InitStruct.Pin = ROW_SEL_EN_GLK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(ROW_SEL_EN_GLK_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : EDGE_EN_Pin SEL_READ_WRITE_Pin ROW_SEL1_Pin ROW_SEL3_Pin 
                            ROW_SEL_EN_Pin LED_LATCH_Pin */
@@ -537,6 +568,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(ROW_SEL2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : SEL_MEM_LED_Pin */
+  GPIO_InitStruct.Pin = SEL_MEM_LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(SEL_MEM_LED_GPIO_Port, &GPIO_InitStruct);
 
 }
 

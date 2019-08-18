@@ -7,13 +7,13 @@
 
 #include "led_data.h"
 
-extern UART_HandleTypeDef huart3;
 uint16_t * renderOutput = bamBuffer1;
 uint8_t * streamOutput = (uint8_t *)bamBuffer1;
 
 uint8_t t = 0;
 uint16_t conversions = 0;
 uint16_t rowTime = 0;
+uint16_t rowTimes[255];
 
 void ConvertRawPixelData(){
 	conversions++;
@@ -69,14 +69,26 @@ void ConvertRawPixelData(){
 		}
 	}
 	else{
-		//OPTIMISED
 		srcOffset = thisPanel.pixelCount*3;
 		uint8_t *bfr = bufferPtr+srcOffset;
+		uint8_t edgeSize;
 		do{
 			ledB[--curLED] = *(--bfr);
 			ledG[curLED] = *(--bfr);
 			ledR[curLED] = *(--bfr);
 		}while(curLED>0);
+		if(thisPanel.edgeActive==TRUE){
+			if(thisPanel.edgeDensity == 0){		//3 PER 8
+				edgeSize = ((((thisPanel.width * 2)+(thisPanel.height*2))/8)*3)*3;
+			}
+			else if(thisPanel.edgeDensity == 1){	//6 PER 8
+				edgeSize = ((((thisPanel.width * 2)+(thisPanel.height*2))/8)*6)*3;
+			}
+			bfr = bufferPtr+srcOffset+edgeSize;
+			do{
+				edgeData[--edgeSize] = *(--bfr);
+			}while(edgeSize>0);
+		}
 	}
 	renderState.storedData = TRUE;
 }
@@ -170,6 +182,7 @@ void BamifyData(){
 	renderState.firstRender = FALSE;
 	renderState.drawBufferSwitchPending = TRUE;
 	//47362 CYCLES TO GET HERE IN TC MODE
+	WatchdogRefresh();
 	if(renderState.bamTimerStarted==FALSE){
 		renderState.bamTimerStarted = TRUE;
 		DataToLEDs();
@@ -181,30 +194,20 @@ void BamifyData(){
 	}
 }
 
-
+uint8_t bamCache;
 void LEDDataTransmit(){
-	//ClearAndPauseTimer6();
 	TIM6->CR1 = 0;		//PAUSE TIMER
-	//TIM6->CNT = 0;		//ZERO TIMER
+	TIM6->CNT = 0;		//ZERO TIMER
 	TIM6->SR = 0;		//CLEAR THE UPDATE EVENT FLAG
-	uint16_t dataPos8Bit = renderState.rowOffset+renderState.bamOffset;
-	//uint8_t *data = (uint8_t *)streamOutput;
-	TransmitSPI1DMA(streamOutput+dataPos8Bit,12);
 
-	//WE CAN DO A FEW OTHER LITTLE BITS AHEAD OF TIME
+	TransmitSPI1DMA(streamOutput+renderState.rowOffset+renderState.bamOffset,12);
+
+	//WE CAN DO A FEW OTHER LITTLE BITS AHEAD OF TIME WHILST THE TRANSFER IS ONGOING
 	GPIOA->BSRR |= LED_LATCH_Pin;			//SET LATCH PIN HIGH READY TO LATCH
-	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;		//DISABLE ALL OUTPUTS OF LED DRIVER. PLACE HERE FOR DIMMER LEVELS.
 	renderState.bamOffset += 12;
-}
-
-
-void FinaliseLEDData(){
-	//DO THIS WHILST WAITING FOR THE SPI TO CLOCK IN...DMA WILL ALWAYS END BEFORE SPI HAS FINISHED SPITTING OUT ITS BITS
-
-	//GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;			//DISABLE ALL OUTPUTS OF LED DRIVER - MOVED TO ALLOW DIMMER LEVELS.
-
-	SelectRow(renderState.currentRow);				//CHANGE ROW. NOTE WE DONT BOTHER SHUTTING OFF THE MULTIPLEXER AS THE LED DRIVER IS OFF ANYWAY.
-	uint8_t bamCache = renderState.currentBamBit++;
+	GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;		//DISABLE ALL OUTPUTS OF LED DRIVER. PLACE HERE FOR DIMMER LEVELS.
+	SelectRow(renderState.currentRow);		//CHANGE ROW. NOTE WE DONT BOTHER SHUTTING OFF THE MULTIPLEXER AS THE LED DRIVER IS OFF ANYWAY.
+	bamCache = renderState.currentBamBit++;
 
 	if(renderState.currentBamBit == thisPanel.bamBits){
 		renderState.currentBamBit=0;
@@ -225,81 +228,72 @@ void FinaliseLEDData(){
 		}
 		renderState.rowOffset = renderState.currentRow*(12*thisPanel.bamBits);
 	}
-	//NOT NEEDED IF WE FILL OUT TIME WITH SOMETHING USEFUL FOR A FEW CLOCKS...
-	//while((SPI1->SR & SPI_SR_BSY));
+}
 
+
+void FinaliseLEDData(){
+	//DMA WILL ALWAYS END BEFORE SPI HAS FINISHED SPITTING OUT ITS BITS
+	//GPIOB->BSRR |= ROW_SEL_EN_GLK_Pin;			//DISABLE ALL OUTPUTS OF LED DRIVER - MOVED TO ALLOW DIMMER LEVELS.
+	SetAndStartTimer6(timeDelays[bamCache]);
+
+	//NOT NEEDED IF WE FILL OUT TIME WITH SOMETHING USEFUL FOR A FEW CLOCKS...
+	while((SPI1->SR & SPI_SR_BSY));
 	GPIOA->BRR |= LED_LATCH_Pin;		//SET LATCH LOW TO COMPLETE THE LATCHING PROCESS. DATA IS DISPLAYED ON OE (EN_GLK) LOW.
 	GPIOB->BRR |= ROW_SEL_EN_GLK_Pin;	//ENABLE ALL OUTPUTS OF LED DRIVER AND SHIFT LATCHED DATA TO OUTPUT
-
-	SetAndStartTimer6(timeDelays[bamCache]);
 
 	#if DEBUGMODE
 	if(renderState.currentRow == 1){
 		if(renderState.currentBamBit==1 && t==0){
-			rowTime = TIM7->CNT;
+			rowTimes[rowTime] = TIM7->CNT;
 			ClearAndPauseTimer7();
+			rowTime++;
+			if(rowTime>254){
+				rowTime = 0;
+			}
+			uint16_t timd = 64000;
+			SetAndStartTimer7(timd);
 			//printf("ROW TIME: %d \n",val);
-			t=1;
+			//t=1;
 		}
 	}
 	#endif
 
-	//BECAUSE THE DELAY IS SO SHORT ON BAM 0 WE IMMEDIATELY SEND BAM 1
-	//THIS REDUCES THE TIME (BAM TIME + SEND TIME) DOWN TO JUST BAM TIME.
-	//WE REPLICATE THIS FUNCTIONALITY ON BAMS 2,3 and 6. THIS LEAVES THE SPI/DMA TX LINE FREE FOR LONGER STINTS
-	//if(bamCache==0 || bamCache==2 || bamCache==4 || bamCache==6){	//USE CURRENTROW SO FIRST PASS DOESNT FIRE THIS
-
-	//if(renderState.immediateJump>0){
-	//	LEDDataTransmit();
-	//}
-
-	//ADC DATA COLLECTION IS DONE DURING BAM4 - WE HAVE APROX 840 CYCLES TO GET THIS DONE.
-	if(thisPanel.touchActive==TRUE && bamCache==4){
-		InitTouch_ADC();
-	}
-	if(renderState.waitingToReturn==TRUE && bamCache==5){
-		SendReturnData();
-	}
-	if(renderState.requireEdgeUpdate==TRUE && bamCache==6){
-		if(renderState.edgeComplete == TRUE){
-			renderState.requireEdgeUpdate = FALSE;
-			renderState.edgeComplete = FALSE;
-			TXEdgeLights();
+	//ADC DATA COLLECTION , RETURN DATA AND EDGE DATA NEED TO HAPPEN DURING LONGER BAM PERIODS TO AVOID/REDUCE FLICKER.
+	if(bamCache>3){
+		if(thisPanel.touchActive==TRUE && bamCache==4){
+			InitTouch_ADC();
+		}
+		if(renderState.waitingToReturn==TRUE && bamCache==5){
+			SendReturnData();
+		}
+		if(renderState.requireEdgeUpdate==TRUE && bamCache==6){
+			if(renderState.edgeComplete == TRUE){
+				renderState.requireEdgeUpdate = FALSE;
+				renderState.edgeComplete = FALSE;
+				TXEdgeLights();
+			}
 		}
 	}
 }
 
-void EnableEdgeLights(){
+void DisableEdgeLights(){
 	GPIOA->BSRR |= EDGE_EN_Pin;
 }
 
 
-void DisableEdgeLights(){
+void EnableEdgeLights(){
 	GPIOA->BRR |= EDGE_EN_Pin;
 }
 
 //GRB ORDER
-uint8_t data[72] = {1,0,0,0,32,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1};
-//uint8_t data[72] = {210,0,0,0,255,0,0,0,255,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128,128,0,0,0,128,0,0,0,128};
-
-//uint8_t data[72] = {255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255,255};
-//uint8_t edgeCompiled[576];
-uint8_t gg =0;
 void TXEdgeLights(){
-
-	uint8_t data2[72] = {1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1,1,0,0,0,1,0,0,0,1};
-	data2[gg] = 64;
-	gg++;
-	if(gg>71){
-		gg=0;
-	}
 	uint32_t offset = 0;
 	uint8_t result;
 	for(uint8_t led=0;led<72;led++){
 		uint8_t bits=8;
 		do{
 			bits--;
-			result = (data2[led] & (1<<bits));	//IS A 1 - WRITE OUT 3 BITS FOR 1 (110) BUT INVERTED
+			result = (edgeData[led] & (1<<bits));	//IS A 1 - WRITE OUT 3 BITS FOR 1 (110) BUT INVERTED
 
 			if(result){
 				edgeCompiled[offset] = 14;
@@ -308,7 +302,7 @@ void TXEdgeLights(){
 				edgeCompiled[offset] = 15;
 			}
 			bits--;
-			result = (data2[led] & (1<<bits));	//IS A 1 - WRITE OUT 3 BITS FOR 1 (110) BUT INVERTED
+			result = (edgeData[led] & (1<<bits));	//IS A 1 - WRITE OUT 3 BITS FOR 1 (110) BUT INVERTED
 			if(result){
 				edgeCompiled[offset] |= 192;
 			}
@@ -317,31 +311,9 @@ void TXEdgeLights(){
 			}
 
 			offset++;
-			//bits--;
 		}while(bits>0);
 	}
 
-
-	//USART3->CR3 |= 2684354560;
-	//USART3->CR3 |= 8388608;
 	DMA1_Channel7->CNDTR = offset;						//DATA LENGTH OF TRANSFER
-	DMA1_Channel7->CPAR = (uint32_t)&USART3->TDR;		//PERIPHERAL ADDRESS TARGET (SPI DATA REGISTER) - SET ON INIT
-	DMA1_Channel7->CMAR = (uint32_t)edgeCompiled;		//ADDRESS OF SRC DATA
-
-
-	DMA1_Channel7->CCR |= 3;									//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
-
-
-
-	//HAL_HalfDuplex_EnableTransmitter(&huart3);
-	//uint8_t t = HAL_UART_Transmit(&huart3, edgeCompiled, 3, 1000);
-	//printf("Dat %d \n",edgeCompiled[0]);
-
-//printf("send %d\n",t);
-	//TXEdgeLights();
-}
-
-
-void UART_DMATransmitCplt(UART_HandleTypeDef *huart){
-	printf("uart called\n");
+	DMA1_Channel7->CCR |= 3;							//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
 }

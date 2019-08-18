@@ -89,18 +89,21 @@ void DMA1_7_Init(){
 	DMA1_Channel7->CCR |= 128;			//SET BIT 8 TO 1. MEM INCREMENT MODE.
 	DMA1_Channel7->CCR |= 4096;			//SET 13th > 12th BITS TO 0,1. MED PRIORITY MODE (LEV 2/4)
 
+	DMA1_Channel7->CPAR = (uint32_t)&USART3->TDR;		//PERIPHERAL ADDRESS TARGET (SPI DATA REGISTER) - SET ON INIT
+	DMA1_Channel7->CMAR = (uint32_t)edgeCompiled;		//ADDRESS OF SRC DATA
+
 	DMAMUX1_Channel6->CCR = 55;			//SET MUX CHANNEL TO USART3 TX.
 }
 
 void DMA1_1_IRQ(){
-	DMA1_Channel1->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+	DMA1_Channel1->CCR &= ~3;	//CLEAR TRANSFER COMPLETE FLAG AND DISABLE
 	DMA1->IFCR |= (1|2);		//CLEAR ALL CHANNEL 1 INTERUPT
-	DMA1_Channel1->CCR &= ~1;	//DISABLE DMA
+	//DMA1_Channel1->CCR &= ~1;	//DISABLE DMA
 
 	if(globalVals.dataState == PANEL_DATA_STREAM){
-		if(renderState.immediateJump==FALSE){
+		//if(renderState.immediateJump==FALSE){
 			FinaliseLEDData();
-		}
+		//}
 	}
 	else if(globalVals.dataState == SENDING_DATA_STREAM){
 		FinishDataSend();
@@ -113,9 +116,9 @@ void DMA1_1_IRQ(){
 
 
 void DMA1_23_IRQ(){
-	DMA1_Channel2->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+	DMA1_Channel2->CCR &= ~3;	//CLEAR TRANSFER COMPLETE FLAG AND DISABLE
 	DMA1->IFCR |= (16|32);		//CLEAR ALL CHANNEL 2 INTERUPT
-	DMA1_Channel2->CCR &= ~1;	//DISABLE DMA
+	//DMA1_Channel2->CCR &= ~1;	//DISABLE DMA
 
 	if(globalVals.dataState == PANEL_DATA_STREAM){			//WAITING TO SEE NEXT PANELS LED DATA
 		HandlePanelData();
@@ -142,16 +145,16 @@ void DMA1_23_IRQ(){
 void DMA1_47_IRQ(){
 
 	if(globalVals.touchRunning == TRUE){
-		DMA1_Channel4->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+		DMA1_Channel4->CCR &= ~3;	//CLEAR TRANSFER COMPLETE FLAG AND DISABLE
 		DMA1->IFCR |= (4096|8192);	//CLEAR ALL CHANNEL 1 INTERUPT
-		DMA1_Channel4->CCR &= ~1;	//DISABLE DMA
+		//DMA1_Channel4->CCR &= ~1;	//DISABLE DMA
 		ADCConversionComplete();
 	}
 	else{
 		renderState.edgeComplete = TRUE;
-		DMA1_Channel7->CCR &= ~2;	//CLEAR TRANSFER COMPLETE FLAG
+		DMA1_Channel7->CCR &= ~3;	//CLEAR TRANSFER COMPLETE FLAG AND DISABLE
 		DMA1->IFCR |= (16777216|33554432);	//CLEAR ALL CHANNEL 1 INTERUPT
-		DMA1_Channel7->CCR &= ~1;	//DISABLE DMA
+		//DMA1_Channel7->CCR &= ~1;	//DISABLE DMA
 	}
 }
 
@@ -170,11 +173,12 @@ void ReceiveSPI2DMA(uint16_t len){
 	//}
 
 	//DMA1_Channel2->CCR &= ~769;								//SET BIT 0 TO 0 TO DISABLE DMA. SET BITS 8 and 9 to 0. CLEAR THE PERIPHERAL DATA SIZE. 00 SET US IN 8BIT MODE.
+
 	DMA1_Channel2->CNDTR = len;									//DATA LENGTH OF TRANSFER
 	//DMA1_Channel2->CPAR = (uint32_t)&SPI2->DR;				//ADDRESS OF SRC DATA - SET ON INIT
 	DMA1_Channel2->CMAR = (uint32_t)bufferSPI_RX;				//PERIPHERAL ADDRESS SOURCE (SPI DATA REGISTER) - SET ON INIT. ALWAYS BUFFER ADDR 0.
 	DMA1_Channel2->CCR |= 3;									//SET BIT 0 TO 1 TO ENABLE THE DMA TRANSFER. SET BIT 1 TO 1 TO ENABLE TRANSFER COMPLETE INTERUPT
-
+	WatchdogRefresh();
 
 }
 

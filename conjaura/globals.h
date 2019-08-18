@@ -11,7 +11,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-#define DEBUGMODE 1						//ENABLE PRINTF OUTPUTS
+#define DEBUGMODE 0						//ENABLE PRINTF OUTPUTS
 #define DISABLEWATCHDOG 0					//FORCE REFRESH OF WATCHDOG
 #define TRUE 1
 #define FALSE 0
@@ -100,7 +100,7 @@ struct GlobalRunVals {
 	uint8_t rxBufferLocation;				//0 = RX, 1 = RX ALT (FLIP FLOP RX BUFFERS).
 	uint8_t touchRunning;
 	uint8_t touchCalibrated;
-	uint8_t pauseOutput;
+	uint8_t watchdogRunning;
 } globalVals;
 
 typedef struct pData {
@@ -213,6 +213,7 @@ uint8_t * bufferSPI_TX;
 void debugPrint(char *data, uint16_t *params);
 void EnsureDefaults(void);
 void Initialise(void);
-
+void InitWatchdog(void);
+void WatchdogRefresh(void);
 
 #endif /* GLOBALS_H_ */
